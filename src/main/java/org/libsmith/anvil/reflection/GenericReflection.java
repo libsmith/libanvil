@@ -21,43 +21,59 @@ public class GenericReflection<T> {
         this.parameterIndex = parameterIndex;
     }
 
-    public static <T> GenericReflection<T> extractGenericType(Class<T> genericClass) {
-        return new GenericReflection<>(genericClass, 0);
+    public static <T> GenericClassReflection<T> extractGenericParameterOf(Class<T> genericContainerClass) {
+        return new GenericClassReflection<>(genericContainerClass, 0);
     }
 
-    public static <T> GenericReflection<T> extractGenericType(Class<T> genericClass, int parameterIndex) {
-        return new GenericReflection<>(genericClass, parameterIndex);
+    public static <T> GenericClassReflection<T> extractGenericParameterOf(Class<T> genericContainerClass, int parameterIndex) {
+        return new GenericClassReflection<>(genericContainerClass, parameterIndex);
     }
 
-    public static <T, R> GenericClassReflection<T, R> extractGenericClass(Class<T> genericClass) {
-        return new GenericClassReflection<>(genericClass, 0);
+    public GenericClassReflection<T> asClass() {
+        return this instanceof GenericClassReflection
+               ? (GenericClassReflection<T>) this
+               : new GenericClassReflection<>(genericClass, parameterIndex);
     }
 
-    public static <T, R> GenericClassReflection<T, R> extractGenericClass(Class<T> genericClass, int parameterIndex) {
-        return new GenericClassReflection<>(genericClass, parameterIndex);
+    public GenericTypeReflection<T> asType() {
+        return this instanceof GenericTypeReflection
+               ? (GenericTypeReflection<T>) this
+               : new GenericTypeReflection<>(genericClass, parameterIndex);
     }
 
-    public static class GenericClassReflection<T, R> extends GenericReflection<T> {
+    public static class GenericClassReflection<T> extends GenericReflection<T> {
         protected GenericClassReflection(Class<T> genericClass, int parameterIndex) {
             super(genericClass, parameterIndex);
         }
 
-        @Override
-        public @Nonnull Class<R> from(@Nonnull final Object instance) throws IllegalArgumentException {
+        public @Nonnull <R> Class<R> from(@Nonnull final T instance) throws IllegalArgumentException {
             return ReflectionUtils.extractClass(super.from(instance));
         }
 
-        @Override
-        public @Nonnull Class<R> from(@Nonnull final Type actualType) throws IllegalArgumentException {
+        public @Nonnull <R> Class<R> from(@Nonnull final Type actualType) throws IllegalArgumentException {
             return ReflectionUtils.extractClass(super.from(actualType));
         }
     }
 
-    public @Nonnull Type from(@Nonnull Object instance) throws IllegalArgumentException {
+    public static class GenericTypeReflection<T> extends GenericReflection<T> {
+        protected GenericTypeReflection(Class<T> genericClass, int parameterIndex) {
+            super(genericClass, parameterIndex);
+        }
+
+        public @Nonnull Type from(@Nonnull final T instance) throws IllegalArgumentException {
+            return super.from(instance);
+        }
+
+        public @Nonnull Type from(@Nonnull final Type actualType) throws IllegalArgumentException {
+            return super.from(actualType);
+        }
+    }
+
+    private @Nonnull Type from(@Nonnull T instance) throws IllegalArgumentException {
         return from(instance.getClass());
     }
 
-    public @Nonnull Type from(@Nonnull final Type actualType) throws IllegalArgumentException {
+    private @Nonnull Type from(@Nonnull final Type actualType) throws IllegalArgumentException {
         final Class<?> actualClass = ReflectionUtils.extractClass(actualType);
 
         // Прекращаем работу если genericClass не является предком

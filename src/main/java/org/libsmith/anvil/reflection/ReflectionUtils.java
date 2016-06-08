@@ -1,25 +1,16 @@
 package org.libsmith.anvil.reflection;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.*;
-import java.util.*;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.WildcardType;
 
 /**
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
  * @created 17.06.2014 23:13
  */
 public final class ReflectionUtils {
-
-    public static @Nonnull Method getMethod(Class<?> type, String methodName, Class<?> ... parameterTypes) {
-        try {
-            return type.getMethod(methodName, parameterTypes);
-        }
-        catch (NoSuchMethodException ex) {
-            throw new RuntimeException(ex);
-        }
-    }
 
     @SuppressWarnings("unchecked")
     public static @Nonnull <T> Class<T> extractClass(@Nonnull Type type) {

@@ -58,5 +58,5 @@ public interface CachedProxy {
         }
     }
 
-    Method DROP_CACHES_METHOD = ReflectionUtils.getMethod(CachedProxy.class, "dropCaches");
+    Method DROP_CACHES_METHOD = ClassReflection.of(CachedProxy.class).getMethod("dropCaches");
 }

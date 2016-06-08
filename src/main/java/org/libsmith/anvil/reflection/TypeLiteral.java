@@ -7,7 +7,7 @@ public abstract class TypeLiteral<T> implements Type, ParameterizedType {
     private final ParameterizedType delegate;
 
     protected TypeLiteral() {
-        delegate = (ParameterizedType) GenericReflection.extractGenericType(TypeLiteral.class).from(this.getClass());
+        delegate = (ParameterizedType) GenericReflection.extractGenericParameterOf(TypeLiteral.class).asType().from(this.getClass());
     }
 
     @SuppressWarnings("unchecked")
