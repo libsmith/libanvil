@@ -1,13 +1,18 @@
 package org.libsmith.anvil.reflection;
 
+import org.libsmith.anvil.reflection.GenericReflection.GenericTypeReflection;
+
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 public abstract class TypeLiteral<T> implements Type, ParameterizedType {
+    private static final GenericTypeReflection<TypeLiteral> TYPE_EXTRACTOR =
+            GenericReflection.extractGenericParameterOf(TypeLiteral.class).asType();
+
     private final ParameterizedType delegate;
 
     protected TypeLiteral() {
-        delegate = (ParameterizedType) GenericReflection.extractGenericParameterOf(TypeLiteral.class).asType().from(this.getClass());
+        delegate = (ParameterizedType) TYPE_EXTRACTOR.from(this.getClass());
     }
 
     @SuppressWarnings("unchecked")
