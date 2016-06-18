@@ -1,0 +1,306 @@
+package org.libsmith.anvil.net;
+
+import com.sun.istack.internal.NotNull;
+
+import javax.annotation.Nullable;
+import javax.naming.CommunicationException;
+import javax.naming.Context;
+import javax.naming.NameNotFoundException;
+import javax.naming.NamingException;
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.InitialDirContext;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
+ * @created 22.02.2016 17:12
+ */
+public class DNSClient {
+
+    private static final Logger LOG = Logger.getLogger(DNSClient.class.getName());
+
+    private final InitialDirContext initialDirContext;
+    private final Object serverHost;
+
+    public DNSClient(@NotNull InetSocketAddress inetSocketAddress) {
+        this(inetSocketAddress.getHostName() + ":" + inetSocketAddress.getPort(), inetSocketAddress);
+    }
+
+    public DNSClient(@NotNull InetAddress inetAddress) {
+        this(inetAddress.getHostName(), inetAddress);
+    }
+
+    private DNSClient(@Nullable String serverHostString, Object serverHost) {
+        this.serverHost = serverHost;
+        try {
+            java.util.Hashtable<String, String> env = new java.util.Hashtable<>();
+            env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.dns.DnsContextFactory");
+            if (serverHost != null) {
+                env.put("java.naming.provider.url", "dns://" + serverHostString);
+            }
+            initialDirContext = new InitialDirContext(env);
+        }
+        catch (NamingException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    public static DNSClient defaultInstance() {
+        return DefaultInstanceHolder.INSTANCE;
+    }
+
+    public @NotNull List<InetAddress> resolveA(String host) throws NameNotFoundException {
+        List<String> resolved = resolve(host, A);
+        if (resolved.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<InetAddress> ret = new ArrayList<>(resolved.size());
+        for (String record : resolved) {
+            String[] splits = record.split("\\.");
+            byte[] address = new byte[4];
+            for (int i = 0; i < 4; i++) {
+                short tokenValue = Short.parseShort(splits[i]);
+                if (tokenValue > 255 || tokenValue < 0) {
+                    throw new RuntimeException();
+                }
+                address[i] = (byte) tokenValue;
+            }
+            try {
+                ret.add(InetAddress.getByAddress(host, address));
+            }
+            catch (UnknownHostException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+        return Collections.unmodifiableList(ret);
+    }
+
+    public @NotNull InetAddress resolveARecord(String host) throws NameNotFoundException {
+        List<InetAddress> inetAddresses = resolveA(host);
+        if (inetAddresses.isEmpty()) {
+            throw new NameNotFoundException(host);
+        }
+        return inetAddresses.get(0);
+    }
+
+    public @NotNull List<InetAddress> resolveAAAA(String host) throws NameNotFoundException {
+        List<String> resolved = resolve(host, AAAA);
+        if (resolved.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<InetAddress> ret = new ArrayList<>(resolved.size());
+        for (String record : resolved) {
+            String[] splits = record.split(":");
+            byte[] address = new byte[16];
+            int i = 0;
+            for (String token : splits) {
+                if (token.isEmpty()) {
+                    i = 16 - (splits.length - 1 - i / 2) * 2;
+                }
+                else {
+                    int tokenValue = Integer.parseInt(token, 16);
+                    if (tokenValue > 0xFFFF || tokenValue < 0) {
+                        throw new RuntimeException();
+                    }
+                    address[i] = (byte) ((tokenValue & 0xFF00) >> 8);
+                    address[i + 1] = (byte) (tokenValue & 0x00FF);
+                    i += 2;
+                }
+            }
+            try {
+                ret.add(InetAddress.getByAddress(host, address));
+            }
+            catch (UnknownHostException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+        return Collections.unmodifiableList(ret);
+    }
+
+    public @NotNull InetAddress resolveAAAARecord(String host) throws NameNotFoundException {
+        List<InetAddress> inetAddresses = resolveAAAA(host);
+        if (inetAddresses.isEmpty()) {
+            throw new NameNotFoundException(host);
+        }
+        return inetAddresses.get(0);
+    }
+
+    public @NotNull List<InetAddress> resolveCNAME(String host) throws NameNotFoundException {
+        List<InetAddress> resolved = new ArrayList<>();
+        try {
+            for (String record : resolve(host, CNAME)) {
+                resolved.add(InetAddress.getByName(record));
+            }
+        }
+        catch (UnknownHostException ex) {
+            throw new RuntimeException(ex);
+        }
+        return resolved;
+    }
+
+    public @NotNull InetAddress resolveCNAMERecord(String host) throws NameNotFoundException {
+        List<InetAddress> inetAddresses = resolveCNAME(host);
+        if (inetAddresses.isEmpty()) {
+            throw new NameNotFoundException(host);
+        }
+        return inetAddresses.get(0);
+    }
+
+    public @NotNull List<InetAddress> resolveMX(String host) throws NameNotFoundException {
+        List<InetAddress> resolved = new ArrayList<>();
+        for (String record : resolve(host, MX)) {
+            String[] split = record.split(" ", 2);
+            try {
+                resolved.add(InetAddress.getByName(split.length == 1 ? split[0] : split[1]));
+            }
+            catch (UnknownHostException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+        return resolved;
+    }
+
+    public @NotNull InetAddress resolveMXRecord(String host) throws NameNotFoundException {
+        List<InetAddress> inetAddresses = resolveMX(host);
+        if (inetAddresses.isEmpty()) {
+            throw new NameNotFoundException(host);
+        }
+        return inetAddresses.get(0);
+    }
+
+    public @NotNull List<String> resolveTXT(String host) throws NameNotFoundException {
+        return resolve(host, TXT);
+    }
+
+    public @NotNull List<InetAddress> resolvePTR(String host) throws NameNotFoundException {
+        List<InetAddress> resolved = new ArrayList<>();
+        boolean aaaa = host.endsWith("ip6.arpa") || host.endsWith("ip6-arpa.");
+        for (String record : resolve(host, PTR)) {
+            List<InetAddress> inetAddresses = aaaa ? resolveAAAA(record) : resolveA(record);
+            resolved.add(inetAddresses.get(0));
+        }
+        return resolved;
+    }
+
+    public @NotNull InetAddress resolvePTRRecord(String host) throws NameNotFoundException {
+        List<InetAddress> inetAddresses = resolvePTR(host);
+        if (inetAddresses.isEmpty()) {
+            throw new NameNotFoundException(host);
+        }
+        return inetAddresses.get(0);
+    }
+
+    public @NotNull InetAddress resolvePTRRecord(InetAddress inetAddress) throws NameNotFoundException {
+        List<InetAddress> inetAddresses = resolvePTR(inetAddress);
+        if (inetAddresses.isEmpty()) {
+            throw new NameNotFoundException(inetAddress.toString());
+        }
+        return inetAddresses.get(0);
+    }
+
+    public @NotNull List<InetAddress> resolvePTR(InetAddress inetAddress) throws NameNotFoundException {
+        StringBuilder sb = new StringBuilder();
+        byte[] address = inetAddress.getAddress();
+        if (address.length == 16) {
+            for (byte b : address) {
+                sb.insert(0, '.');
+                sb.insert(0, Integer.toHexString((b & 0xF0) >> 4));
+                sb.insert(0, '.');
+                sb.insert(0, Integer.toHexString(b & 0x0F));
+            }
+            sb.append("ip6.arpa");
+        }
+        else if (address.length == 4) {
+            for (byte b : address) {
+                sb.insert(0, '.');
+                sb.insert(0, b & 0xFF);
+            }
+            sb.append("in-addr.arpa");
+        }
+
+        List<InetAddress> resolved = new ArrayList<>();
+        try {
+            for (String record : resolve(sb.toString(), PTR)) {
+                resolved.add(InetAddress.getByAddress(record, inetAddress.getAddress()));
+            }
+        }
+        catch (UnknownHostException ex) {
+            throw new RuntimeException(ex);
+        }
+        return resolved;
+    }
+
+    public @NotNull List<String> resolve(String name, String type) throws NameNotFoundException {
+        return resolve(name, new String[] { type });
+    }
+
+    private @NotNull List<String> resolve(String name, String[] types) throws NameNotFoundException {
+        try {
+            if (types.length != 1) {
+                throw new IllegalArgumentException();
+            }
+            Attributes attributes = initialDirContext.getAttributes(name, types);
+            List<String> list = Collections.emptyList();
+            if (attributes != null) {
+                Attribute attribute = attributes.get(types[0]);
+                if (attribute != null && attribute.size() > 0) {
+                    list = new ArrayList<>(attribute.size());
+                    for (int i = 0; i < attribute.size(); i++) {
+                        list.add((String) attribute.get(i));
+                    }
+                }
+            }
+            if (LOG.isLoggable(Level.FINEST)) {
+                LOG.finest("Resolved " + Arrays.toString(types) + " " + name +
+                           (list.isEmpty() ? " as empty list" : " as " + list) +
+                           (serverHost == null ? " via default server" : " via " + serverHost));
+            }
+            return list;
+        }
+        catch (NameNotFoundException ex) {
+            LOG.finest("Resolve " + Arrays.toString(types) + " " + name +
+                       (serverHost == null ? " via default server" : " via " + serverHost) +
+                       " failed");
+            throw ex;
+        }
+        catch (CommunicationException ex) {
+            if (ex.getCause() instanceof IOException) {
+                throw new ResolvingRuntimeException(ex);
+            }
+            throw new ResolvingRuntimeException(ex);
+        }
+        catch (NamingException ex) {
+            throw new ResolvingRuntimeException(ex);
+        }
+    }
+
+    public static class ResolvingRuntimeException extends RuntimeException {
+
+        private static final long serialVersionUID = -7058305943001458889L;
+
+        private ResolvingRuntimeException(Throwable cause) {
+            super(cause);
+        }
+    }
+
+    private static final String[] A      = { "A"     };
+    private static final String[] AAAA   = { "AAAA"  };
+    private static final String[] CNAME  = { "CNAME" };
+    private static final String[] TXT    = { "TXT"   };
+    private static final String[] MX     = { "MX"    };
+    private static final String[] PTR    = { "PTR"   };
+
+    private static final class DefaultInstanceHolder {
+        private static final DNSClient INSTANCE = new DNSClient((String) null, null);
+    }
+}
