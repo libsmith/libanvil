@@ -1,16 +1,13 @@
 package org.libsmith.anvil.net;
 
-import org.junit.Before;
+import org.assertj.core.api.Assertions;
 import org.junit.Test;
+import org.libsmith.anvil.AbstractTest;
 
 import javax.naming.NameNotFoundException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.List;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static org.junit.Assert.*;
 
@@ -18,144 +15,134 @@ import static org.junit.Assert.*;
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
  * @created 22.02.2016 17:20
  */
-public class DNSClientIT {
+public class DNSClientIT extends AbstractTest {
     private static final String UNKNOWN_HOST = "hernya.kakayato.hesushestvuyashaya.ru";
 
     private DNSClient dnsClient = DNSClient.defaultInstance();
 
-    @Before
-    public void before() {
-        Logger.getLogger(DNSClient.class.getName()).setLevel(Level.FINEST);
-        for (Handler handler : Logger.getLogger("").getHandlers()) {
-            if (handler instanceof ConsoleHandler) {
-                handler.setLevel(Level.FINEST);
-            }
-        }
-    }
-
     @Test
-    public void testResolveA() throws Exception {
+    public void resolveA() throws Exception {
         List<InetAddress> addresses = dnsClient.resolveA("google.com");
         assertFalse(addresses.isEmpty());
     }
 
     @Test(expected = NameNotFoundException.class)
-    public void testUnknownHostResolveA() throws Exception {
+    public void unknownHostResolveA() throws Exception {
         dnsClient.resolveA(UNKNOWN_HOST);
     }
 
     @Test
-    public void testResolveARecord() throws Exception {
+    public void resolveARecord() throws Exception {
         assertNotNull(dnsClient.resolveARecord("google.com"));
     }
 
     @Test(expected = NameNotFoundException.class)
-    public void testUnknownHostResolveARecord() throws Exception {
+    public void unknownHostResolveARecord() throws Exception {
         dnsClient.resolveA(UNKNOWN_HOST);
     }
 
     @Test
-    public void testResolveAAAA() throws Exception {
+    public void resolveAAAA() throws Exception {
         List<InetAddress> addresses = dnsClient.resolveAAAA("google.com");
         assertFalse(addresses.isEmpty());
     }
 
     @Test
-    public void testUnknownResolveAAAA() throws Exception {
+    public void unknownResolveAAAA() throws Exception {
         assertTrue(dnsClient.resolveAAAA("narod.ru").isEmpty());
     }
 
     @Test(expected = NameNotFoundException.class)
-    public void testUnknownHostResolveAAAA() throws Exception {
+    public void unknownHostResolveAAAA() throws Exception {
         dnsClient.resolveAAAA(UNKNOWN_HOST);
     }
 
     @Test
-    public void testResolveAAAARecord() throws Exception {
+    public void resolveAAAARecord() throws Exception {
         assertNotNull(dnsClient.resolveAAAARecord("google.com"));
     }
 
     @Test(expected = NameNotFoundException.class)
-    public void testUnknownHostResolveAAAARecord() throws Exception {
+    public void unknownHostResolveAAAARecord() throws Exception {
         dnsClient.resolveAAAARecord(UNKNOWN_HOST);
     }
 
     @Test(expected = NameNotFoundException.class)
-    public void testUnknownResolveAAAARecord() throws Exception {
+    public void unknownResolveAAAARecord() throws Exception {
         dnsClient.resolveAAAARecord("narod.ru");
     }
 
     @Test
-    public void testResolveCNAME() throws Exception {
+    public void resolveCNAME() throws Exception {
         List<InetAddress> hosts = dnsClient.resolveCNAME("www.ya.ru");
         assertFalse(hosts.isEmpty());
     }
 
     @Test(expected = NameNotFoundException.class)
-    public void testUnknownHostResolveCNAME() throws Exception {
+    public void unknownHostResolveCNAME() throws Exception {
         dnsClient.resolveCNAME(UNKNOWN_HOST);
     }
 
     @Test
-    public void testResolveCNAMERecord() throws Exception {
+    public void resolveCNAMERecord() throws Exception {
         assertNotNull(dnsClient.resolveCNAMERecord("www.ya.ru"));
     }
 
     @Test(expected = NameNotFoundException.class)
-    public void testUnknownHostResolveCNAMERecord() throws Exception {
+    public void unknownHostResolveCNAMERecord() throws Exception {
         dnsClient.resolveCNAMERecord(UNKNOWN_HOST);
     }
 
     @Test(expected = NameNotFoundException.class)
-    public void testUnknownResolveCNAMERecord() throws Exception {
+    public void unknownResolveCNAMERecord() throws Exception {
         dnsClient.resolveCNAMERecord("google.com");
     }
 
     @Test
-    public void testResolveMX() throws Exception {
+    public void resolveMX() throws Exception {
         List<InetAddress> hosts = dnsClient.resolveMX("gmail.com");
         assertFalse(hosts.isEmpty());
     }
 
     @Test(expected = NameNotFoundException.class)
-    public void testUnknownHostResolveMX() throws Exception {
+    public void unknownHostResolveMX() throws Exception {
         dnsClient.resolveMX(UNKNOWN_HOST);
     }
 
     @Test
-    public void testResolveMXRecord() throws Exception {
+    public void resolveMXRecord() throws Exception {
         assertNotNull(dnsClient.resolveMXRecord("gmail.com"));
     }
 
     @Test(expected = NameNotFoundException.class)
-    public void testUnknownHostResolveMXRecord() throws Exception {
+    public void unknownHostResolveMXRecord() throws Exception {
         dnsClient.resolveMXRecord(UNKNOWN_HOST);
     }
 
     @Test(expected = NameNotFoundException.class)
-    public void testUnknownResolveMXRecord() throws Exception {
+    public void unknownResolveMXRecord() throws Exception {
         dnsClient.resolveMXRecord("www.google.com");
     }
 
     @Test
-    public void testResolveTXT() throws Exception {
+    public void resolveTXT() throws Exception {
         List<String> strings = dnsClient.resolveTXT("google.com");
         assertFalse(strings.isEmpty());
     }
 
     @Test(expected = NameNotFoundException.class)
-    public void testResolveUnknownTXT() throws Exception {
+    public void resolveUnknownTXT() throws Exception {
         dnsClient.resolveTXT(UNKNOWN_HOST);
     }
 
     @Test
-    public void testResolveAPTR() throws Exception {
+    public void resolveAPTR() throws Exception {
         List<InetAddress> strings = dnsClient.resolvePTR("8.8.8.8.in-addr.arpa");
         assertFalse(strings.isEmpty());
     }
 
     @Test
-    public void testResolveAAAAPTR() throws Exception {
+    public void resolveAAAAPTR() throws Exception {
         List<InetAddress> strings = dnsClient.resolvePTR(
                 "5.6.0.0.0.0.0.0.0.0.0.0.0.0.0.0.b.0.c.0.0.1.0.4.0.5.4.1.0.0.a.2.ip6.arpa");
         assertFalse(strings.isEmpty());
@@ -163,31 +150,31 @@ public class DNSClientIT {
 
 
     @Test
-    public void testResolveAPTRByAddress() throws Exception {
+    public void resolveAPTRByAddress() throws Exception {
         List<InetAddress> strings = dnsClient.resolvePTR(InetAddress.getByName("8.8.8.8"));
         assertFalse(strings.isEmpty());
     }
 
     @Test
-    public void testResolveAAAAPTRByAddress() throws Exception {
+    public void resolveAAAAPTRByAddress() throws Exception {
         List<InetAddress> strings = dnsClient.resolvePTR(InetAddress.getByName("2a00:1450:4010:c0b:0:0:0:65"));
         assertFalse(strings.isEmpty());
     }
 
     @Test
-    public void testResolvePTRRecordByName() throws Exception {
+    public void resolvePTRRecordByName() throws Exception {
         InetAddress inetAddress = dnsClient.resolvePTRRecord("8.8.8.8.in-addr.arpa");
         assertNotNull(inetAddress.getHostName());
     }
 
     @Test
-    public void testResolvePTRRecordByAddress() throws Exception {
+    public void resolvePTRRecordByAddress() throws Exception {
         InetAddress inetAddress = dnsClient.resolvePTRRecord(InetAddress.getByName("8.8.8.8"));
         assertNotNull(inetAddress.getHostName());
     }
 
     @Test
-    public void testResolve() throws Exception {
+    public void resolve() throws Exception {
         List<String> googleAResolve = dnsClient.resolve("google.com", "A");
         assertFalse(googleAResolve.isEmpty());
 
@@ -205,11 +192,16 @@ public class DNSClientIT {
     }
 
     @Test
-    public void testNonDefaultServers() throws Exception {
+    public void nonDefaultServers() throws Exception {
         List<InetAddress> yandexAResolve = new DNSClient(new InetSocketAddress("8.8.8.8", 53)).resolveA("ya.ru");
         assertFalse(yandexAResolve.isEmpty());
 
         List<InetAddress> yandexAResolveMore = new DNSClient(InetAddress.getByName("8.8.4.4")).resolveA("ya.ru");
         assertFalse(yandexAResolveMore.isEmpty());
+
+        Assertions.assertThatThrownBy(() ->
+            new DNSClient(InetSocketAddress.createUnresolved("notexisting.dns.server.ru", 53)).resolveA("ya.ru")
+        )       .isInstanceOf(DNSClient.ResolvingCommunicationException.class)
+                .hasMessageContaining("notexisting.dns.server.ru");
     }
 }

@@ -1,12 +1,11 @@
 package org.libsmith.anvil.net;
 
-import com.sun.istack.internal.NotNull;
+import org.libsmith.anvil.log.LogRecordBuilder;
+import org.libsmith.anvil.time.TimePeriod;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import javax.naming.CommunicationException;
-import javax.naming.Context;
-import javax.naming.NameNotFoundException;
-import javax.naming.NamingException;
+import javax.naming.*;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.InitialDirContext;
@@ -14,8 +13,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
@@ -30,13 +29,13 @@ public class DNSClient {
     private static final Logger LOG = Logger.getLogger(DNSClient.class.getName());
 
     private final InitialDirContext initialDirContext;
-    private final Object serverHost;
+    private final Object            serverHost;
 
-    public DNSClient(@NotNull InetSocketAddress inetSocketAddress) {
+    public DNSClient(@Nonnull InetSocketAddress inetSocketAddress) {
         this(inetSocketAddress.getHostName() + ":" + inetSocketAddress.getPort(), inetSocketAddress);
     }
 
-    public DNSClient(@NotNull InetAddress inetAddress) {
+    public DNSClient(@Nonnull InetAddress inetAddress) {
         this(inetAddress.getHostName(), inetAddress);
     }
 
@@ -59,7 +58,7 @@ public class DNSClient {
         return DefaultInstanceHolder.INSTANCE;
     }
 
-    public @NotNull List<InetAddress> resolveA(String host) throws NameNotFoundException {
+    public @Nonnull List<InetAddress> resolveA(@Nonnull String host) throws NameNotFoundException {
         List<String> resolved = resolve(host, A);
         if (resolved.isEmpty()) {
             return Collections.emptyList();
@@ -85,7 +84,7 @@ public class DNSClient {
         return Collections.unmodifiableList(ret);
     }
 
-    public @NotNull InetAddress resolveARecord(String host) throws NameNotFoundException {
+    public @Nonnull InetAddress resolveARecord(@Nonnull String host) throws NameNotFoundException {
         List<InetAddress> inetAddresses = resolveA(host);
         if (inetAddresses.isEmpty()) {
             throw new NameNotFoundException(host);
@@ -93,7 +92,7 @@ public class DNSClient {
         return inetAddresses.get(0);
     }
 
-    public @NotNull List<InetAddress> resolveAAAA(String host) throws NameNotFoundException {
+    public @Nonnull List<InetAddress> resolveAAAA(@Nonnull String host) throws NameNotFoundException {
         List<String> resolved = resolve(host, AAAA);
         if (resolved.isEmpty()) {
             return Collections.emptyList();
@@ -127,7 +126,7 @@ public class DNSClient {
         return Collections.unmodifiableList(ret);
     }
 
-    public @NotNull InetAddress resolveAAAARecord(String host) throws NameNotFoundException {
+    public @Nonnull InetAddress resolveAAAARecord(@Nonnull String host) throws NameNotFoundException {
         List<InetAddress> inetAddresses = resolveAAAA(host);
         if (inetAddresses.isEmpty()) {
             throw new NameNotFoundException(host);
@@ -135,7 +134,7 @@ public class DNSClient {
         return inetAddresses.get(0);
     }
 
-    public @NotNull List<InetAddress> resolveCNAME(String host) throws NameNotFoundException {
+    public @Nonnull List<InetAddress> resolveCNAME(@Nonnull String host) throws NameNotFoundException {
         List<InetAddress> resolved = new ArrayList<>();
         try {
             for (String record : resolve(host, CNAME)) {
@@ -148,7 +147,7 @@ public class DNSClient {
         return resolved;
     }
 
-    public @NotNull InetAddress resolveCNAMERecord(String host) throws NameNotFoundException {
+    public @Nonnull InetAddress resolveCNAMERecord(@Nonnull String host) throws NameNotFoundException {
         List<InetAddress> inetAddresses = resolveCNAME(host);
         if (inetAddresses.isEmpty()) {
             throw new NameNotFoundException(host);
@@ -156,7 +155,7 @@ public class DNSClient {
         return inetAddresses.get(0);
     }
 
-    public @NotNull List<InetAddress> resolveMX(String host) throws NameNotFoundException {
+    public @Nonnull List<InetAddress> resolveMX(@Nonnull String host) throws NameNotFoundException {
         List<InetAddress> resolved = new ArrayList<>();
         for (String record : resolve(host, MX)) {
             String[] split = record.split(" ", 2);
@@ -170,7 +169,7 @@ public class DNSClient {
         return resolved;
     }
 
-    public @NotNull InetAddress resolveMXRecord(String host) throws NameNotFoundException {
+    public @Nonnull InetAddress resolveMXRecord(@Nonnull String host) throws NameNotFoundException {
         List<InetAddress> inetAddresses = resolveMX(host);
         if (inetAddresses.isEmpty()) {
             throw new NameNotFoundException(host);
@@ -178,11 +177,11 @@ public class DNSClient {
         return inetAddresses.get(0);
     }
 
-    public @NotNull List<String> resolveTXT(String host) throws NameNotFoundException {
+    public @Nonnull List<String> resolveTXT(@Nonnull String host) throws NameNotFoundException {
         return resolve(host, TXT);
     }
 
-    public @NotNull List<InetAddress> resolvePTR(String host) throws NameNotFoundException {
+    public @Nonnull List<InetAddress> resolvePTR(@Nonnull String host) throws NameNotFoundException {
         List<InetAddress> resolved = new ArrayList<>();
         boolean aaaa = host.endsWith("ip6.arpa") || host.endsWith("ip6-arpa.");
         for (String record : resolve(host, PTR)) {
@@ -192,7 +191,7 @@ public class DNSClient {
         return resolved;
     }
 
-    public @NotNull InetAddress resolvePTRRecord(String host) throws NameNotFoundException {
+    public @Nonnull InetAddress resolvePTRRecord(@Nonnull String host) throws NameNotFoundException {
         List<InetAddress> inetAddresses = resolvePTR(host);
         if (inetAddresses.isEmpty()) {
             throw new NameNotFoundException(host);
@@ -200,7 +199,7 @@ public class DNSClient {
         return inetAddresses.get(0);
     }
 
-    public @NotNull InetAddress resolvePTRRecord(InetAddress inetAddress) throws NameNotFoundException {
+    public @Nonnull InetAddress resolvePTRRecord(@Nonnull InetAddress inetAddress) throws NameNotFoundException {
         List<InetAddress> inetAddresses = resolvePTR(inetAddress);
         if (inetAddresses.isEmpty()) {
             throw new NameNotFoundException(inetAddress.toString());
@@ -208,7 +207,7 @@ public class DNSClient {
         return inetAddresses.get(0);
     }
 
-    public @NotNull List<InetAddress> resolvePTR(InetAddress inetAddress) throws NameNotFoundException {
+    public @Nonnull List<InetAddress> resolvePTR(@Nonnull InetAddress inetAddress) throws NameNotFoundException {
         StringBuilder sb = new StringBuilder();
         byte[] address = inetAddress.getAddress();
         if (address.length == 16) {
@@ -240,19 +239,21 @@ public class DNSClient {
         return resolved;
     }
 
-    public @NotNull List<String> resolve(String name, String type) throws NameNotFoundException {
+    public @Nonnull List<String> resolve(@Nonnull String name, @Nonnull String type) throws NameNotFoundException {
         return resolve(name, new String[] { type });
     }
 
-    private @NotNull List<String> resolve(String name, String[] types) throws NameNotFoundException {
+    private @Nonnull List<String> resolve(@Nonnull String name, @Nonnull String[] types) throws NameNotFoundException {
+        assert types.length == 1;
+        String type = types[0];
+        String serverName = serverHost == null ? "default server" : serverHost.toString();
+        long start = System.currentTimeMillis();
         try {
-            if (types.length != 1) {
-                throw new IllegalArgumentException();
-            }
+            LOG.finest(() -> MessageFormat.format("Resolve {0} via {1}", name, serverName));
             Attributes attributes = initialDirContext.getAttributes(name, types);
             List<String> list = Collections.emptyList();
             if (attributes != null) {
-                Attribute attribute = attributes.get(types[0]);
+                Attribute attribute = attributes.get(type);
                 if (attribute != null && attribute.size() > 0) {
                     list = new ArrayList<>(attribute.size());
                     for (int i = 0; i < attribute.size(); i++) {
@@ -260,45 +261,68 @@ public class DNSClient {
                     }
                 }
             }
-            if (LOG.isLoggable(Level.FINEST)) {
-                LOG.finest("Resolved " + Arrays.toString(types) + " " + name +
-                           (list.isEmpty() ? " as empty list" : " as " + list) +
-                           (serverHost == null ? " via default server" : " via " + serverHost));
+            if (LOG.isLoggable(Level.FINE)) {
+                LOG.log(LogRecordBuilder.fine()
+                                        .withMessage("Resolved {0} as {1} via {2}; {3}")
+                                        .withParameters(type, list.isEmpty() ? "empty list" : list,
+                                                        serverName, TimePeriod.tillNowFrom(start)));
             }
+
             return list;
         }
         catch (NameNotFoundException ex) {
-            LOG.finest("Resolve " + Arrays.toString(types) + " " + name +
-                       (serverHost == null ? " via default server" : " via " + serverHost) +
-                       " failed");
+            LOG.finer(() -> formatException(name, serverName, start, ex));
             throw ex;
         }
         catch (CommunicationException ex) {
+            LOG.finer(() -> formatException(name, serverName, start, ex));
             if (ex.getCause() instanceof IOException) {
-                throw new ResolvingRuntimeException(ex);
+                throw new ResolvingCommunicationException(ex.getMessage(), ex.getCause());
             }
-            throw new ResolvingRuntimeException(ex);
+            throw new ResolvingCommunicationException(null, ex);
+        }
+        catch (ConfigurationException ex) {
+            LOG.finer(() -> formatException(name, serverName, start, ex));
+            if (ex.getCause() instanceof UnknownHostException) {
+                throw new ResolvingCommunicationException(ex.getMessage(), ex.getCause());
+            }
+            throw new ResolvingRuntimeException(null, ex);
         }
         catch (NamingException ex) {
-            throw new ResolvingRuntimeException(ex);
+            LOG.finer(() -> formatException(name, serverName, start, ex));
+            throw new ResolvingRuntimeException(null, ex);
         }
+    }
+
+    private static String formatException(String name, String serverName, long start, Throwable th) {
+        return MessageFormat.format("Resolve {0} via {1} failed; {2}; {3}",
+                                    name, serverName, TimePeriod.tillNowFrom(start), th);
     }
 
     public static class ResolvingRuntimeException extends RuntimeException {
 
         private static final long serialVersionUID = -7058305943001458889L;
 
-        private ResolvingRuntimeException(Throwable cause) {
-            super(cause);
+        private ResolvingRuntimeException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 
-    private static final String[] A      = { "A"     };
-    private static final String[] AAAA   = { "AAAA"  };
-    private static final String[] CNAME  = { "CNAME" };
-    private static final String[] TXT    = { "TXT"   };
-    private static final String[] MX     = { "MX"    };
-    private static final String[] PTR    = { "PTR"   };
+    public static class ResolvingCommunicationException extends ResolvingRuntimeException {
+
+        private static final long serialVersionUID = -2787192644452509106L;
+
+        private ResolvingCommunicationException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    private static final String[] A     = { "A" };
+    private static final String[] AAAA  = { "AAAA" };
+    private static final String[] CNAME = { "CNAME" };
+    private static final String[] TXT   = { "TXT" };
+    private static final String[] MX    = { "MX" };
+    private static final String[] PTR   = { "PTR" };
 
     private static final class DefaultInstanceHolder {
         private static final DNSClient INSTANCE = new DNSClient((String) null, null);
