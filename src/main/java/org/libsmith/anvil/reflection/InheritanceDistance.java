@@ -9,12 +9,12 @@ import java.util.List;
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
  * @created 20.03.16 6:17
  */
-public class ReflectionDistance {
+public class InheritanceDistance {
     protected final Class<?> referenceType;
     protected Class<?> foundType;
     protected int distance = -1;
 
-    protected ReflectionDistance(Class<?> referenceType) {
+    protected InheritanceDistance(Class<?> referenceType) {
         this.referenceType = referenceType;
     }
 
@@ -41,7 +41,7 @@ public class ReflectionDistance {
         return new BackwardMinimumDistance(to);
     }
 
-    public static class ForwardMinimumDistance extends ReflectionDistance {
+    public static class ForwardMinimumDistance extends InheritanceDistance {
         protected ForwardMinimumDistance(Class<?> referenceType) {
             super(referenceType);
         }
@@ -59,7 +59,7 @@ public class ReflectionDistance {
         }
     }
 
-    public static class BackwardMinimumDistance extends ReflectionDistance {
+    public static class BackwardMinimumDistance extends InheritanceDistance {
         protected BackwardMinimumDistance(Class<?> referenceType) {
             super(referenceType);
         }

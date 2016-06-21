@@ -1,17 +1,18 @@
 package org.libsmith.anvil.reflection;
 
 import org.junit.Test;
+import org.libsmith.anvil.AbstractTest;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.libsmith.anvil.reflection.ReflectionDistance.fromType;
-import static org.libsmith.anvil.reflection.ReflectionDistance.toType;
+import static org.libsmith.anvil.reflection.InheritanceDistance.fromType;
+import static org.libsmith.anvil.reflection.InheritanceDistance.toType;
 
 /**
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
  * @created 20.03.16 6:19
  */
-public class ReflectionDistanceTest {
+public class InheritanceDistanceTest extends AbstractTest {
 
     @Test
     public void forwardDistanceTest() {
