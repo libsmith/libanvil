@@ -1,6 +1,7 @@
 package org.libsmith.anvil.reflection;
 
 import org.junit.Test;
+import org.libsmith.anvil.AbstractTest;
 
 import static org.junit.Assert.assertEquals;
 
@@ -8,10 +9,12 @@ import static org.junit.Assert.assertEquals;
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
  * @created 03.02.2016 0:54
  */
-public class CachedProxyTest {
+public class CachedProxyTest extends AbstractTest {
 
     private interface SomethingInterface {
+
         int methodA(int a, boolean b);
+
         int methodB(int a, boolean b);
     }
 

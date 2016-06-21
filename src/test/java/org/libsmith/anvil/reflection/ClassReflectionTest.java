@@ -2,6 +2,7 @@ package org.libsmith.anvil.reflection;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.libsmith.anvil.AbstractTest;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -12,7 +13,7 @@ import static java.util.stream.Collectors.joining;
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
  * @created 09.06.16 0:50
  */
-public class ClassReflectionTest {
+public class ClassReflectionTest extends AbstractTest {
 
     @Test
     public void instantiationTest() {
@@ -151,9 +152,9 @@ public class ClassReflectionTest {
     @SuppressWarnings("unused")
     private abstract static class ParentSubject implements Interface {
         private static String PARENT_PRIVATE_STATIC_FIELD = "pprsf";
-        private String PARENT_PRIVATE_FIELD = "pprsf";
-        public static String PARENT_PUBLIC_STATIC_FIELD = "ppusf";
-        public String PARENT_PUBLIC_FIELD = "ppusf";
+        private        String PARENT_PRIVATE_FIELD        = "pprsf";
+        public static  String PARENT_PUBLIC_STATIC_FIELD  = "ppusf";
+        public         String PARENT_PUBLIC_FIELD         = "ppusf";
 
         private static void parentPrivateStaticMethod() { }
         public static void parentPublicStaticMethod() { }
@@ -167,20 +168,27 @@ public class ClassReflectionTest {
     @SuppressWarnings("unused")
     private static class Subject extends ParentSubject {
         private static String PRIVATE_STATIC_FIELD = "prsf";
-        private String PRIVATE_FIELD = "prsf";
-        public static String PUBLIC_STATIC_FIELD = "pusf";
-        public String PUBLIC_FIELD = "pusf";
+        private        String PRIVATE_FIELD        = "prsf";
+        public static  String PUBLIC_STATIC_FIELD  = "pusf";
+        public         String PUBLIC_FIELD         = "pusf";
 
         static {
             int ignored = ParentSubject.PARENT_PRIVATE_STATIC_FIELD.hashCode(); // bridge method create
         }
 
-        private static void privateStaticMethod() { }
-        public static void publicStaticMethod() { }
+        private static void privateStaticMethod() {
+        }
 
-        private void privateMethod() { }
-        @Override public void publicMethod() { }
+        public static void publicStaticMethod() {
+        }
 
-        @Override void abstractMethod() { }
+        private void privateMethod() {
+        }
+
+        @Override public void publicMethod() {
+        }
+
+        @Override void abstractMethod() {
+        }
     }
 }

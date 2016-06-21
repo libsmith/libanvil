@@ -1,6 +1,7 @@
 package org.libsmith.anvil.reflection;
 
 import org.junit.Test;
+import org.libsmith.anvil.AbstractTest;
 
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
@@ -18,7 +19,7 @@ import static org.libsmith.anvil.reflection.GenericReflection.extractGenericPara
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
  * @created 17.06.2014 23:13
  */
-public class GenericReflectionTest {
+public class GenericReflectionTest extends AbstractTest {
 
     private G x = new G();
 

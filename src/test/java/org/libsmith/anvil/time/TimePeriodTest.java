@@ -1,6 +1,7 @@
 package org.libsmith.anvil.time;
 
 import org.junit.Test;
+import org.libsmith.anvil.AbstractTest;
 
 import java.util.Date;
 import java.util.Random;
@@ -12,7 +13,7 @@ import static org.junit.Assert.*;
  * @author Dmitriy Balakin <balakin@loyaltyplant.com>
  * @created 18.02.2016 3:00
  */
-public class TimePeriodTest {
+public class TimePeriodTest extends AbstractTest {
 
     @Test
     public void getPeriodTest() {
@@ -100,17 +101,20 @@ public class TimePeriodTest {
 
     @Test
     public void beforeTest() {
-        assertEquals(1234 - TimeUnit.DAYS.toMillis(1), new TimePeriod(1, TimeUnit.DAYS).before(new Date(1234)).getTime());
+        assertEquals(1234 - TimeUnit.DAYS.toMillis(1), new TimePeriod(1, TimeUnit.DAYS).before(new Date(1234))
+                                                                                       .getTime());
     }
 
     @Test
     public void fromNow() {
-        assertTrue(System.currentTimeMillis() - new TimePeriod(1, TimeUnit.DAYS).fromNow().getTime() + TimeUnit.DAYS.toMillis(1) < 100);
+        assertTrue(System.currentTimeMillis() - new TimePeriod(1, TimeUnit.DAYS).fromNow()
+                                                                                .getTime() + TimeUnit.DAYS.toMillis(1) < 100);
     }
 
     @Test
     public void beforeNow() {
-        assertTrue(System.currentTimeMillis() - new TimePeriod(1, TimeUnit.DAYS).beforeNow().getTime() - TimeUnit.DAYS.toMillis(1) < 100);
+        assertTrue(System.currentTimeMillis() - new TimePeriod(1, TimeUnit.DAYS).beforeNow()
+                                                                                .getTime() - TimeUnit.DAYS.toMillis(1) < 100);
     }
 
 
@@ -147,21 +151,21 @@ public class TimePeriodTest {
     @Test
     public void toStringTest() {
         assertEquals("1w 2d 3h 4m 5s 6ms", new TimePeriod(
-                TimeUnit.DAYS.toMillis(7) +
-                TimeUnit.DAYS.toMillis(2) +
-                TimeUnit.HOURS.toMillis(3) +
-                TimeUnit.MINUTES.toMillis(4) +
-                TimeUnit.SECONDS.toMillis(5) +
-                TimeUnit.MILLISECONDS.toMillis(6), TimeUnit.MILLISECONDS).toString()
-        );
+                             TimeUnit.DAYS.toMillis(7) +
+                             TimeUnit.DAYS.toMillis(2) +
+                             TimeUnit.HOURS.toMillis(3) +
+                             TimeUnit.MINUTES.toMillis(4) +
+                             TimeUnit.SECONDS.toMillis(5) +
+                             TimeUnit.MILLISECONDS.toMillis(6), TimeUnit.MILLISECONDS).toString()
+                    );
         assertEquals("-1w 2d 3h 4m 5s 6ms", new TimePeriod(
-                -(TimeUnit.DAYS.toMillis(7) +
-                  TimeUnit.DAYS.toMillis(2) +
-                  TimeUnit.HOURS.toMillis(3) +
-                  TimeUnit.MINUTES.toMillis(4) +
-                  TimeUnit.SECONDS.toMillis(5) +
-                  TimeUnit.MILLISECONDS.toMillis(6)), TimeUnit.MILLISECONDS).toString()
-        );
+                             -(TimeUnit.DAYS.toMillis(7) +
+                               TimeUnit.DAYS.toMillis(2) +
+                               TimeUnit.HOURS.toMillis(3) +
+                               TimeUnit.MINUTES.toMillis(4) +
+                               TimeUnit.SECONDS.toMillis(5) +
+                               TimeUnit.MILLISECONDS.toMillis(6)), TimeUnit.MILLISECONDS).toString()
+                    );
 
         assertEquals("0", TimePeriod.ZERO.toString());
     }
