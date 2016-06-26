@@ -86,6 +86,19 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
         }
     }
 
+    public TimePeriod mul(long val) {
+        try {
+            return new TimePeriod(Math.multiplyExact(getDuration(), val), getTimeUnit());
+        }
+        catch (ArithmeticException ex) {
+            throw new ArithmeticException("Overflow at multiply value '" + this + "' by '" + val + "'");
+        }
+    }
+
+    public TimePeriod div(long val) {
+        return new TimePeriod(getDuration() / val, getTimeUnit());
+    }
+
     public ImmutableDate fromNow() {
         return new ImmutableDate(System.currentTimeMillis() + getDurationMillis());
     }

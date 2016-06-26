@@ -223,16 +223,6 @@ public class TimePeriodTest extends AbstractTest {
         new TimePeriod(TimeUnit.MILLISECONDS.toDays(Long.MAX_VALUE), TimeUnit.DAYS).add(TimePeriod.parse("1d 1ms"));
     }
 
-    @Test(expected = ArithmeticException.class)
-    public void subOverflowTestAtConversion() {
-        new TimePeriod(TimeUnit.MILLISECONDS.toDays(Long.MAX_VALUE) + 1, TimeUnit.DAYS).sub(TimePeriod.parse("1d 1ms"));
-    }
-
-    @Test(expected = ArithmeticException.class)
-    public void subOverflowTestAtAddition() {
-        new TimePeriod(TimeUnit.MILLISECONDS.toDays(Long.MIN_VALUE), TimeUnit.DAYS).sub(TimePeriod.parse("1d 1ms"));
-    }
-
     @Test
     public void subTest() {
         assertEquals("41m 20ms",
@@ -245,7 +235,27 @@ public class TimePeriodTest extends AbstractTest {
     }
 
     @Test(expected = ArithmeticException.class)
-    public void subOverflowTest() {
+    public void subOverflowTestAtConversion() {
+        new TimePeriod(TimeUnit.MILLISECONDS.toDays(Long.MAX_VALUE) + 1, TimeUnit.DAYS).sub(TimePeriod.parse("1d 1ms"));
+    }
+
+    @Test(expected = ArithmeticException.class)
+    public void subOverflowTestAtAddition() {
         new TimePeriod(TimeUnit.MILLISECONDS.toDays(Long.MIN_VALUE), TimeUnit.DAYS).sub(TimePeriod.parse("1d 1ms"));
+    }
+
+    @Test
+    public void mulTest() {
+        assertEquals("4h 2m", TimePeriod.parse("2h 1m").mul(2).toString());
+    }
+
+    @Test(expected = ArithmeticException.class)
+    public void mulOverflowTest() {
+        TimePeriod.parse("2h 21m").mul(Long.MAX_VALUE);
+    }
+
+    @Test
+    public void divTest() {
+        assertEquals("2h 1m", TimePeriod.parse("4h 2m").div(2).toString());
     }
 }
