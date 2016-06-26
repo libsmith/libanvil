@@ -16,20 +16,14 @@ import static org.junit.Assert.*;
 public class TimePeriodTest extends AbstractTest {
 
     @Test
-    public void getPeriodTest() {
-        assertEquals(TimeUnit.HOURS.toMillis(1234), new TimePeriod(1234, TimeUnit.HOURS).getPeriod());
-        assertEquals(TimeUnit.MILLISECONDS.toMillis(1234), new TimePeriod(1234, TimeUnit.MILLISECONDS).getPeriod());
+    public void getDurationTest() {
+        assertEquals(TimeUnit.HOURS.toMillis(1234), new TimePeriod(1234, TimeUnit.HOURS).getDurationMillis());
+        assertEquals(TimeUnit.MILLISECONDS.toMillis(1234), new TimePeriod(1234, TimeUnit.MILLISECONDS).getDurationMillis());
     }
 
     @Test(expected = ArithmeticException.class)
-    public void getPeriodOverflowTest() {
-        new TimePeriod(Long.MAX_VALUE - 100, TimeUnit.DAYS).getPeriod(TimeUnit.MILLISECONDS);
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void nullTimeUnitTest() {
-        //noinspection ConstantConditions
-        new TimePeriod(0, null);
+    public void getDurationOverflowTest() {
+        new TimePeriod(Long.MAX_VALUE - 100, TimeUnit.DAYS).getDuration(TimeUnit.MILLISECONDS);
     }
 
     @Test
@@ -120,24 +114,24 @@ public class TimePeriodTest extends AbstractTest {
 
     @Test
     public void parseTest() {
-        assertEquals(TimeUnit.DAYS.toMillis(1), TimePeriod.parse("1d").getPeriod());
-        assertEquals(TimeUnit.DAYS.toMillis(7), TimePeriod.parse("1w").getPeriod());
+        assertEquals(TimeUnit.DAYS.toMillis(1), TimePeriod.parse("1d").getDuration());
+        assertEquals(TimeUnit.DAYS.toMillis(7), TimePeriod.parse("1w").getDuration());
         assertEquals(TimeUnit.DAYS.toMillis(7) +
                      TimeUnit.DAYS.toMillis(4) +
                      TimeUnit.HOURS.toMillis(3) +
                      TimeUnit.MINUTES.toMillis(2) +
                      TimeUnit.SECONDS.toMillis(1) +
                      TimeUnit.MILLISECONDS.toMillis(432)
-                , TimePeriod.parse("1w 4d 3h 2m 1s 432ms").getPeriod());
+                , TimePeriod.parse("1w 4d 3h 2m 1s 432ms").getDuration());
 
         assertEquals(-(TimeUnit.DAYS.toMillis(7) +
                        TimeUnit.MINUTES.toMillis(6) +
                        TimeUnit.SECONDS.toMillis(5))
-                , TimePeriod.parse("-7d 6m 5s").getPeriod());
+                , TimePeriod.parse("-7d 6m 5s").getDuration());
 
-        assertEquals(1234, TimePeriod.parse("1234").getPeriod());
+        assertEquals(1234, TimePeriod.parse("1234").getDuration());
 
-        assertEquals(0, TimePeriod.parse("0").getPeriod());
+        assertEquals(0, TimePeriod.parse("0").getDuration());
 
         assertNull(TimePeriod.parse(""));
         assertNull(TimePeriod.parse(null));
@@ -183,29 +177,75 @@ public class TimePeriodTest extends AbstractTest {
     public void sinceNowToTest() {
         Date date = new Date(System.currentTimeMillis() + 10000);
         TimePeriod timePeriod = TimePeriod.sinceNowTo(date);
-        assertTrue("Actual " + timePeriod.getPeriod(), timePeriod.getPeriod() <= 10000);
-        assertTrue("Actual " + timePeriod.getPeriod(), timePeriod.getPeriod() > 9950);
+        assertTrue("Actual " + timePeriod.getDuration(), timePeriod.getDuration() <= 10000);
+        assertTrue("Actual " + timePeriod.getDuration(), timePeriod.getDuration() > 9950);
 
         TimePeriod millis = TimePeriod.sinceNowTo(System.currentTimeMillis() + 10000);
-        assertTrue("Actual " + millis.getPeriod(), millis.getPeriod() <= 10000);
-        assertTrue("Actual " + millis.getPeriod(), millis.getPeriod() > 9950);
+        assertTrue("Actual " + millis.getDuration(), millis.getDuration() <= 10000);
+        assertTrue("Actual " + millis.getDuration(), millis.getDuration() > 9950);
     }
 
     @Test
     public void tillNowFromTest() {
         Date date = new Date(System.currentTimeMillis() - 10000);
         TimePeriod timePeriod = TimePeriod.tillNowFrom(date);
-        assertTrue("Actual " + timePeriod.getPeriod(), timePeriod.getPeriod() >= 10000);
-        assertTrue("Actual " + timePeriod.getPeriod(), timePeriod.getPeriod() < 10050);
+        assertTrue("Actual " + timePeriod.getDuration(), timePeriod.getDuration() >= 10000);
+        assertTrue("Actual " + timePeriod.getDuration(), timePeriod.getDuration() < 10050);
 
         TimePeriod millis = TimePeriod.tillNowFrom(System.currentTimeMillis() - 10000);
-        assertTrue("Actual " + millis.getPeriod(), millis.getPeriod() >= 10000);
-        assertTrue("Actual " + millis.getPeriod(), millis.getPeriod() < 10050);
+        assertTrue("Actual " + millis.getDuration(), millis.getDuration() >= 10000);
+        assertTrue("Actual " + millis.getDuration(), millis.getDuration() < 10050);
     }
 
     @Test
     public void between() {
-        assertEquals(2, TimePeriod.between(new Date(1000), new Date(3000)).getPeriod(TimeUnit.SECONDS));
-        assertEquals(4, TimePeriod.between(6000, 10000).getPeriod(TimeUnit.SECONDS));
+        assertEquals(2, TimePeriod.between(new Date(1000), new Date(3000)).getDuration(TimeUnit.SECONDS));
+        assertEquals(4, TimePeriod.between(6000, 10000).getDuration(TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void addTest() {
+        assertEquals("1h 25m 143ms",
+                     TimePeriod.parse("3m 143ms").add(TimePeriod.parse("1h 22m")).toString());
+        assertEquals("4h 2s",
+                     new TimePeriod(4, TimeUnit.HOURS).add(new TimePeriod(2, TimeUnit.SECONDS)).toString());
+        assertEquals("2h 4s",
+                     new TimePeriod(4, TimeUnit.SECONDS).add(new TimePeriod(2, TimeUnit.HOURS)).toString());
+    }
+
+    @Test(expected = ArithmeticException.class)
+    public void addOverflowTestAtConversion() {
+        new TimePeriod(TimeUnit.MILLISECONDS.toDays(Long.MIN_VALUE) - 1, TimeUnit.DAYS).add(TimePeriod.parse("1d 1ms"));
+    }
+
+    @Test(expected = ArithmeticException.class)
+    public void addOverflowTestAtAddition() {
+        new TimePeriod(TimeUnit.MILLISECONDS.toDays(Long.MAX_VALUE), TimeUnit.DAYS).add(TimePeriod.parse("1d 1ms"));
+    }
+
+    @Test(expected = ArithmeticException.class)
+    public void subOverflowTestAtConversion() {
+        new TimePeriod(TimeUnit.MILLISECONDS.toDays(Long.MAX_VALUE) + 1, TimeUnit.DAYS).sub(TimePeriod.parse("1d 1ms"));
+    }
+
+    @Test(expected = ArithmeticException.class)
+    public void subOverflowTestAtAddition() {
+        new TimePeriod(TimeUnit.MILLISECONDS.toDays(Long.MIN_VALUE), TimeUnit.DAYS).sub(TimePeriod.parse("1d 1ms"));
+    }
+
+    @Test
+    public void subTest() {
+        assertEquals("41m 20ms",
+                     TimePeriod.parse("1h 3m 24ms").sub(TimePeriod.parse("22m 4ms")).toString());
+        assertEquals("3h 59m 58s",
+                     new TimePeriod(4, TimeUnit.HOURS).sub(new TimePeriod(2, TimeUnit.SECONDS)).toString());
+        assertEquals("-1h 59m 56s",
+                     new TimePeriod(4, TimeUnit.SECONDS).sub(new TimePeriod(2, TimeUnit.HOURS)).toString());
+
+    }
+
+    @Test(expected = ArithmeticException.class)
+    public void subOverflowTest() {
+        new TimePeriod(TimeUnit.MILLISECONDS.toDays(Long.MIN_VALUE), TimeUnit.DAYS).sub(TimePeriod.parse("1d 1ms"));
     }
 }

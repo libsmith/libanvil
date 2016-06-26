@@ -25,53 +25,81 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
     private final long duration;
     private final TimeUnit timeUnit;
 
-    public TimePeriod(long duration, @Nonnull TimeUnit timeUnit) {
-        //noinspection ConstantConditions
-        if (timeUnit == null) {
-            throw new IllegalArgumentException();
-        }
+    protected TimePeriod(long duration, @Nonnull TimeUnit timeUnit) {
         this.duration = duration;
         this.timeUnit = timeUnit;
-    }
-
-    public long getPeriod() { //TODO: refactor to getDurationMillis
-        return getPeriod(TimeUnit.MILLISECONDS);
-    }
-
-    public long getPeriod(TimeUnit timeUnit) { //TODO: refactor to getDuration
-        long value = timeUnit.convert(getDuration(), getTimeUnit());
-        if (value == Long.MIN_VALUE || value == Long.MAX_VALUE) {
-            throw new ArithmeticException("Overflow conversion of period " + getDuration() + " " + getTimeUnit() + " to " + timeUnit);
-        }
-        return value;
-    }
-
-    public long getPeriodInexact(TimeUnit timeUnit) { //TODO: refactor to getDuration
-        return timeUnit.convert(getDuration(), getTimeUnit());
-    }
-
-    public long getDuration() {
-        return duration;
     }
 
     public @Nonnull TimeUnit getTimeUnit() {
         return timeUnit;
     }
 
+    public long getDuration() {
+        return duration;
+    }
+
+    public long getDuration(TimeUnit timeUnit) {
+        return convertExact(getDuration(), getTimeUnit(), timeUnit);
+    }
+
+    public long getDurationInexact(TimeUnit timeUnit) {
+        return timeUnit.convert(getDuration(), getTimeUnit());
+    }
+
+    public long getDurationMillis() {
+        return getDuration(TimeUnit.MILLISECONDS);
+    }
+
+    public TimePeriod add(TimePeriod timePeriod) {
+        return add(timePeriod.getDuration(), timePeriod.getTimeUnit());
+    }
+
+    public TimePeriod add(long duration, TimeUnit timeUnit) {
+        if (duration == 0) {
+            return this;
+        }
+        TimeUnit min = timeUnit.compareTo(this.getTimeUnit()) < 0 ? timeUnit : this.getTimeUnit();
+        try {
+            return new TimePeriod(Math.addExact(this.getDuration(min), convertExact(duration, timeUnit, min)), min);
+        }
+        catch (ArithmeticException ex) {
+            throw new ArithmeticException("Overflow at addition to '" + this + "' value '" +
+                                          new TimePeriod(duration, timeUnit) + "'");
+        }
+    }
+
+    public TimePeriod sub(TimePeriod timePeriod) {
+        return sub(timePeriod.getDuration(), timePeriod.getTimeUnit());
+    }
+
+    public TimePeriod sub(long duration, TimeUnit timeUnit) {
+        if (duration == 0) {
+            return this;
+        }
+        TimeUnit min = timeUnit.compareTo(this.getTimeUnit()) < 0 ? timeUnit : this.getTimeUnit();
+        try {
+            return new TimePeriod(Math.subtractExact(this.getDuration(min), convertExact(duration, timeUnit, min)), min);
+        }
+        catch (ArithmeticException ex) {
+            throw new ArithmeticException("Overflow at subtraction from '" + this + "' value '" +
+                                          new TimePeriod(duration, timeUnit) + "'");
+        }
+    }
+
     public ImmutableDate fromNow() {
-        return new ImmutableDate(System.currentTimeMillis() + getPeriod());
+        return new ImmutableDate(System.currentTimeMillis() + getDurationMillis());
     }
 
     public ImmutableDate beforeNow() {
-        return new ImmutableDate(System.currentTimeMillis() - getPeriod());
+        return new ImmutableDate(System.currentTimeMillis() - getDurationMillis());
     }
 
     public ImmutableDate from(Date date) {
-        return new ImmutableDate(date.getTime() + getPeriod());
+        return new ImmutableDate(date.getTime() + getDurationMillis());
     }
 
     public ImmutableDate before(Date date) {
-        return new ImmutableDate(date.getTime() - getPeriod());
+        return new ImmutableDate(date.getTime() - getDurationMillis());
     }
 
     public static TimePeriod parse(String stringValue) {
@@ -117,10 +145,17 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
 
     @Override
     public String toString() {
-        return toString(getPeriod());
+        try {
+            return toString(getDurationMillis());
+        }
+        catch (ArithmeticException ex) {
+            return getDuration() +
+                   (getTimeUnit() == TimeUnit.MILLISECONDS ? "ms"
+                                                           : getTimeUnit().toString().substring(0, 1).toLowerCase());
+        }
     }
 
-    protected static String toString(long period) {
+    private static String toString(long period) {
         if (period == 0) {
             return "0";
         }
@@ -186,10 +221,10 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
             return Long.compare(getDuration(), other.getDuration());
         }
         if (getTimeUnit().compareTo(other.getTimeUnit()) > 0) {
-            return Long.compare(getPeriodInexact(other.getTimeUnit()), other.getDuration());
+            return Long.compare(getDurationInexact(other.getTimeUnit()), other.getDuration());
         }
         else {
-            return Long.compare(getDuration(), other.getPeriodInexact(getTimeUnit()));
+            return Long.compare(getDuration(), other.getDurationInexact(getTimeUnit()));
         }
     }
 
@@ -215,6 +250,15 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
 
     public static TimePeriod sinceNowTo(long utcTimeInMillis) {
         return between(System.currentTimeMillis(), utcTimeInMillis);
+    }
+
+    private static long convertExact(long sourceDuration, TimeUnit sourceTimeUnit, TimeUnit destTimeUnit) {
+        long value = destTimeUnit.convert(sourceDuration, sourceTimeUnit);
+        if (value == Long.MIN_VALUE || value == Long.MAX_VALUE) {
+            throw new ArithmeticException("Overflow conversion of period " + sourceDuration + " " + sourceTimeUnit +
+                                          " to " + destTimeUnit);
+        }
+        return value;
     }
 
     public static class Adapter extends XmlAdapter<String, TimePeriod> {
