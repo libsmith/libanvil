@@ -5,6 +5,7 @@ import javax.xml.bind.annotation.adapters.XmlAdapter;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.Objects;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -66,6 +67,10 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
             throw new ArithmeticException("Overflow at addition to '" + this + "' value '" +
                                           new TimePeriod(duration, timeUnit) + "'");
         }
+    }
+
+    public TimePeriod addRandom(int origin, int bound, TimeUnit timeUnit) {
+        return add(ThreadLocalRandom.current().nextInt(origin, bound), timeUnit);
     }
 
     public TimePeriod sub(TimePeriod timePeriod) {
@@ -272,6 +277,10 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
                                           " to " + destTimeUnit);
         }
         return value;
+    }
+
+    public void sleep() throws InterruptedException {
+        getTimeUnit().sleep(getDuration());
     }
 
     public static class Adapter extends XmlAdapter<String, TimePeriod> {

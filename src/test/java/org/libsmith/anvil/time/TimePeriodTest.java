@@ -203,6 +203,13 @@ public class TimePeriodTest extends AbstractTest {
         assertEquals(4, TimePeriod.between(6000, 10000).getDuration(TimeUnit.SECONDS));
     }
 
+    @Test(timeout = 1000)
+    public void sleepTest() throws InterruptedException {
+        long now = System.currentTimeMillis();
+        new TimePeriod(750, TimeUnit.MILLISECONDS).sleep();
+        assertTrue(System.currentTimeMillis() >= now + 750);
+    }
+
     @Test
     public void addTest() {
         assertEquals("1h 25m 143ms",
@@ -211,6 +218,16 @@ public class TimePeriodTest extends AbstractTest {
                      new TimePeriod(4, TimeUnit.HOURS).add(new TimePeriod(2, TimeUnit.SECONDS)).toString());
         assertEquals("2h 4s",
                      new TimePeriod(4, TimeUnit.SECONDS).add(new TimePeriod(2, TimeUnit.HOURS)).toString());
+    }
+
+    @Test
+    public void addRandomTest() {
+        TimePeriod timePeriod = TimePeriod.parse("0");
+        for (int i = 200; i < 1000; i++) {
+            long val = timePeriod.addRandom(100, i, TimeUnit.HOURS).getDuration(TimeUnit.HOURS);
+            assertTrue(val >= 100);
+            assertTrue(val < 1000);
+        }
     }
 
     @Test(expected = ArithmeticException.class)
