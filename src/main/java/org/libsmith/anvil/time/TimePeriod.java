@@ -69,8 +69,13 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
         }
     }
 
-    public TimePeriod addRandom(int origin, int bound, TimeUnit timeUnit) {
-        return add(ThreadLocalRandom.current().nextInt(origin, bound), timeUnit);
+    public TimePeriod addRandom(long origin, long bound, TimeUnit timeUnit) {
+        return add(ThreadLocalRandom.current().nextLong(origin, bound), timeUnit);
+    }
+
+    public TimePeriod addRandom(TimePeriod origin, TimePeriod bound) {
+        TimeUnit min = timeUnit.compareTo(this.getTimeUnit()) < 0 ? timeUnit : this.getTimeUnit();
+        return addRandom(origin.getDuration(min), bound.getDuration(min), min);
     }
 
     public TimePeriod sub(TimePeriod timePeriod) {

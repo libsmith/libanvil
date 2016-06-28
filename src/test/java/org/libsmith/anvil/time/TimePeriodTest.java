@@ -223,10 +223,19 @@ public class TimePeriodTest extends AbstractTest {
     @Test
     public void addRandomTest() {
         TimePeriod timePeriod = TimePeriod.parse("0");
-        for (int i = 200; i < 1000; i++) {
+        for (int i = 200; i < 10000; i++) {
             long val = timePeriod.addRandom(100, i, TimeUnit.HOURS).getDuration(TimeUnit.HOURS);
             assertTrue(val >= 100);
-            assertTrue(val < 1000);
+            assertTrue(val < 10000);
+        }
+
+        TimePeriod tenMinutes = new TimePeriod(10, TimeUnit.MINUTES);
+        TimePeriod tenHours = new TimePeriod(10, TimeUnit.HOURS);
+        for (int i = 0; i < 10000; i++) {
+            TimePeriod val = timePeriod.addRandom(tenMinutes, tenHours);
+            long ms = val.getDuration(TimeUnit.MILLISECONDS);
+            assertTrue("Must be >= 10m, actual: " + val, ms >= TimeUnit.MINUTES.toMillis(10));
+            assertTrue("Must be < 10h, actual: " + val, ms < TimeUnit.HOURS.toMillis(10));
         }
     }
 
