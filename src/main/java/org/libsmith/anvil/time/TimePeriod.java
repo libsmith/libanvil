@@ -3,6 +3,7 @@ package org.libsmith.anvil.time;
 import javax.annotation.Nonnull;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
@@ -315,7 +316,25 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
         return between(System.nanoTime(), jvmNanoTime, TimeUnit.NANOSECONDS);
     }
 
+    public static TimePeriod sum(TimePeriod ... timePeriods) {
+        return sum(Arrays.asList(timePeriods));
+    }
+
+    public static TimePeriod sum(Iterable<? extends TimePeriod> timePeriods) {
+        long value = 0;
+        TimeUnit resolution = TimeUnit.DAYS;
+        for (TimePeriod timePeriod : timePeriods) {
+            TimeUnit min = min(resolution, timePeriod.getTimeUnit());
+            value = Math.addExact(timePeriod.getDuration(min), convertExact(value, resolution, min));
+            resolution = min;
+        }
+        return value == 0 ? TimePeriod.ZERO : new TimePeriod(value, resolution);
+    }
+
     private static long convertExact(long sourceDuration, TimeUnit sourceTimeUnit, TimeUnit destTimeUnit) {
+        if (sourceTimeUnit == destTimeUnit || sourceDuration == 0) {
+            return sourceDuration;
+        }
         long value = destTimeUnit.convert(sourceDuration, sourceTimeUnit);
         if (value == Long.MIN_VALUE || value == Long.MAX_VALUE) {
             throw new ArithmeticException("Overflow conversion of period " + sourceDuration + " " + sourceTimeUnit +

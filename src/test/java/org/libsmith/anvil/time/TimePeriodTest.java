@@ -283,6 +283,14 @@ public class TimePeriodTest extends AbstractTest {
     }
 
     @Test
+    public void sumTest() {
+        assertEquals("1d 2h 3m", TimePeriod.sum(TimePeriod.parse("1d"),
+                                                TimePeriod.parse("2h"),
+                                                TimePeriod.parse("3m")).toString());
+        assertSame(TimePeriod.ZERO, TimePeriod.sum());
+    }
+
+    @Test
     public void subTest() {
         assertEquals("41m 20ms",
                      TimePeriod.parse("1h 3m 24ms").sub(TimePeriod.parse("22m 4ms")).toString());
