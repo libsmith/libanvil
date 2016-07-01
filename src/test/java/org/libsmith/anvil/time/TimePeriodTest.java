@@ -2,7 +2,13 @@ package org.libsmith.anvil.time;
 
 import org.junit.Test;
 import org.libsmith.anvil.AbstractTest;
+import org.libsmith.anvil.jaxb.JAXBContextHelper;
 
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 import java.util.Date;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -114,24 +120,37 @@ public class TimePeriodTest extends AbstractTest {
 
     @Test
     public void parseTest() {
-        assertEquals(TimeUnit.DAYS.toMillis(1), TimePeriod.parse("1d").getDuration());
-        assertEquals(TimeUnit.DAYS.toMillis(7), TimePeriod.parse("1w").getDuration());
-        assertEquals(TimeUnit.DAYS.toMillis(7) +
-                     TimeUnit.DAYS.toMillis(4) +
-                     TimeUnit.HOURS.toMillis(3) +
-                     TimeUnit.MINUTES.toMillis(2) +
-                     TimeUnit.SECONDS.toMillis(1) +
-                     TimeUnit.MILLISECONDS.toMillis(432)
-                , TimePeriod.parse("1w 4d 3h 2m 1s 432ms").getDuration());
+        assertEquals(TimeUnit.DAYS.toMillis(1), TimePeriod.parse("1d").getDurationMillis());
+        assertEquals(TimeUnit.DAYS.toNanos(4) +
+                     TimeUnit.HOURS.toNanos(3) +
+                     TimeUnit.MINUTES.toNanos(2) +
+                     TimeUnit.SECONDS.toNanos(1) +
+                     TimeUnit.MILLISECONDS.toNanos(432) +
+                     TimeUnit.MICROSECONDS.toNanos(123) +
+                     TimeUnit.NANOSECONDS.toNanos(445)
+                , TimePeriod.parse("4d 3h 2m 1s 432ms 123us 445ns").getDuration(TimeUnit.NANOSECONDS));
+
+        assertEquals(TimeUnit.DAYS.toNanos(4) +
+                     TimeUnit.HOURS.toNanos(3) +
+                     TimeUnit.MINUTES.toNanos(2) +
+                     TimeUnit.SECONDS.toNanos(1) +
+                     TimeUnit.MILLISECONDS.toNanos(432) +
+                     TimeUnit.MICROSECONDS.toNanos(123) +
+                     TimeUnit.NANOSECONDS.toNanos(445)
+                , TimePeriod.parse("4 days, 3 hour; 2 minute + 1 second & 432 millisecond / 123 microsecond | 445 nanosecond")
+                            .getDuration(TimeUnit.NANOSECONDS));
 
         assertEquals(-(TimeUnit.DAYS.toMillis(7) +
                        TimeUnit.MINUTES.toMillis(6) +
                        TimeUnit.SECONDS.toMillis(5))
-                , TimePeriod.parse("-7d 6m 5s").getDuration());
+                , TimePeriod.parse("-7d 6m 5s").getDurationMillis());
 
-        assertEquals(1234, TimePeriod.parse("1234").getDuration());
+        assertEquals(1234, TimePeriod.parse("1234", TimeUnit.MINUTES).getDuration(TimeUnit.MINUTES));
 
         assertEquals(0, TimePeriod.parse("0").getDuration());
+
+        assertEquals(TimeUnit.MINUTES, TimePeriod.parse("3d 3m").getTimeUnit());
+        assertEquals(42, TimePeriod.parse("42s").getDuration());
 
         assertNull(TimePeriod.parse(""));
         assertNull(TimePeriod.parse(null));
@@ -139,12 +158,17 @@ public class TimePeriodTest extends AbstractTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void parseErrorTimePeriodTest() {
-        TimePeriod.parse("2w 1d 2m 3x 4s");
+        TimePeriod.parse("1d 2m 3x 4s");
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void parseErrorTimePeriodGarbageTest() {
+        TimePeriod.parse("1d hrenoten vsakaya 2m");
     }
 
     @Test
     public void toStringTest() {
-        assertEquals("1w 2d 3h 4m 5s 6ms", new TimePeriod(
+        assertEquals("9d 3h 4m 5s 6ms", new TimePeriod(
                              TimeUnit.DAYS.toMillis(7) +
                              TimeUnit.DAYS.toMillis(2) +
                              TimeUnit.HOURS.toMillis(3) +
@@ -152,7 +176,7 @@ public class TimePeriodTest extends AbstractTest {
                              TimeUnit.SECONDS.toMillis(5) +
                              TimeUnit.MILLISECONDS.toMillis(6), TimeUnit.MILLISECONDS).toString()
                     );
-        assertEquals("-1w 2d 3h 4m 5s 6ms", new TimePeriod(
+        assertEquals("-9d 3h 4m 5s 6ms", new TimePeriod(
                              -(TimeUnit.DAYS.toMillis(7) +
                                TimeUnit.DAYS.toMillis(2) +
                                TimeUnit.HOURS.toMillis(3) +
@@ -168,7 +192,7 @@ public class TimePeriodTest extends AbstractTest {
     public void stressToStringParseTest() {
         Random random = new Random(42);
         for (int i = 0; i < 100_000; i++) {
-            TimePeriod timePeriod = new TimePeriod(random.nextLong(), TimeUnit.MILLISECONDS);
+            TimePeriod timePeriod = new TimePeriod(random.nextLong(), TimeUnit.NANOSECONDS);
             assertEquals(timePeriod.toString(), TimePeriod.parse(timePeriod.toString()).toString());
         }
     }
@@ -180,9 +204,13 @@ public class TimePeriodTest extends AbstractTest {
         assertTrue("Actual " + timePeriod.getDuration(), timePeriod.getDuration() <= 10000);
         assertTrue("Actual " + timePeriod.getDuration(), timePeriod.getDuration() > 9950);
 
-        TimePeriod millis = TimePeriod.sinceNowTo(System.currentTimeMillis() + 10000);
+        TimePeriod millis = TimePeriod.sinceNowToMillis(System.currentTimeMillis() + 10000);
         assertTrue("Actual " + millis.getDuration(), millis.getDuration() <= 10000);
         assertTrue("Actual " + millis.getDuration(), millis.getDuration() > 9950);
+
+        TimePeriod nanos = TimePeriod.sinceNowToNanos(System.nanoTime() + 10000000);
+        assertTrue("Actual " + nanos.getDuration(), nanos.getDuration() <= 10000000);
+        assertTrue("Actual " + nanos.getDuration(), nanos.getDuration() > 9950000);
     }
 
     @Test
@@ -192,15 +220,19 @@ public class TimePeriodTest extends AbstractTest {
         assertTrue("Actual " + timePeriod.getDuration(), timePeriod.getDuration() >= 10000);
         assertTrue("Actual " + timePeriod.getDuration(), timePeriod.getDuration() < 10050);
 
-        TimePeriod millis = TimePeriod.tillNowFrom(System.currentTimeMillis() - 10000);
+        TimePeriod millis = TimePeriod.tillNowFromMillis(System.currentTimeMillis() - 10000);
         assertTrue("Actual " + millis.getDuration(), millis.getDuration() >= 10000);
         assertTrue("Actual " + millis.getDuration(), millis.getDuration() < 10050);
+
+        TimePeriod nanos = TimePeriod.tillNowFromNanos(System.nanoTime() - 10000000);
+        assertTrue("Actual " + nanos.getDuration(), nanos.getDuration() >= 10000000);
+        assertTrue("Actual " + nanos.getDuration(), nanos.getDuration() < 10050000);
     }
 
     @Test
     public void between() {
         assertEquals(2, TimePeriod.between(new Date(1000), new Date(3000)).getDuration(TimeUnit.SECONDS));
-        assertEquals(4, TimePeriod.between(6000, 10000).getDuration(TimeUnit.SECONDS));
+        assertEquals(4, TimePeriod.between(6000, 10000, TimeUnit.MILLISECONDS).getDuration(TimeUnit.SECONDS));
     }
 
     @Test(timeout = 1000)
@@ -218,6 +250,7 @@ public class TimePeriodTest extends AbstractTest {
                      new TimePeriod(4, TimeUnit.HOURS).add(new TimePeriod(2, TimeUnit.SECONDS)).toString());
         assertEquals("2h 4s",
                      new TimePeriod(4, TimeUnit.SECONDS).add(new TimePeriod(2, TimeUnit.HOURS)).toString());
+        assertSame(TimePeriod.ZERO, TimePeriod.ZERO.add(0, TimeUnit.SECONDS));
     }
 
     @Test
@@ -257,7 +290,7 @@ public class TimePeriodTest extends AbstractTest {
                      new TimePeriod(4, TimeUnit.HOURS).sub(new TimePeriod(2, TimeUnit.SECONDS)).toString());
         assertEquals("-1h 59m 56s",
                      new TimePeriod(4, TimeUnit.SECONDS).sub(new TimePeriod(2, TimeUnit.HOURS)).toString());
-
+        assertSame(TimePeriod.ZERO, TimePeriod.ZERO.sub(0, TimeUnit.SECONDS));
     }
 
     @Test(expected = ArithmeticException.class)
@@ -283,5 +316,31 @@ public class TimePeriodTest extends AbstractTest {
     @Test
     public void divTest() {
         assertEquals("2h 1m", TimePeriod.parse("4h 2m").div(2).toString());
+    }
+
+    @Test
+    public void marshallTest() throws JAXBException {
+        JAXBContextHelper context = JAXBContextHelper.builder().with(SomeObject.class).build();
+        SomeObject someObject = new SomeObject();
+        someObject.setTimePeriod(new TimePeriod(12423523536714L, TimeUnit.NANOSECONDS));
+        String marshall = context.marshall(someObject);
+        SomeObject unmarshalledObject = context.unmarshal(marshall);
+        assertEquals(someObject.getTimePeriod(), unmarshalledObject.getTimePeriod());
+    }
+
+    @XmlRootElement
+    @XmlAccessorType(XmlAccessType.FIELD)
+    private static class SomeObject {
+
+        @XmlJavaTypeAdapter(TimePeriod.Adapter.class)
+        private TimePeriod timePeriod;
+
+        public TimePeriod getTimePeriod() {
+            return timePeriod;
+        }
+
+        public void setTimePeriod(TimePeriod timePeriod) {
+            this.timePeriod = timePeriod;
+        }
     }
 }

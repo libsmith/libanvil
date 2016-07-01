@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
  * @created 28.10.2015 16:26
  */
+@SuppressWarnings("WeakerAccess")
 public class TimePeriod implements Serializable, Comparable<TimePeriod> {
     private static final long serialVersionUID = -4819273455430547917L;
 
@@ -21,12 +22,12 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
     public static final TimePeriod MIN_VALUE = new TimePeriod(Long.MIN_VALUE, TimeUnit.DAYS);
     public static final TimePeriod MAX_VALUE = new TimePeriod(Long.MAX_VALUE, TimeUnit.DAYS);
 
-    private static Pattern PARSE_PATTERN = Pattern.compile("(\\d+)\\s*(\\p{Alpha}*)");
+    private static Pattern PARSE_PATTERN = Pattern.compile("\\s*(\\d+)\\s*(\\p{Alpha}*)\\s*\\p{Punct}*");
 
     private final long duration;
     private final TimeUnit timeUnit;
 
-    protected TimePeriod(long duration, @Nonnull TimeUnit timeUnit) {
+    public TimePeriod(long duration, @Nonnull TimeUnit timeUnit) {
         this.duration = duration;
         this.timeUnit = timeUnit;
     }
@@ -51,6 +52,10 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
         return getDuration(TimeUnit.MILLISECONDS);
     }
 
+    public void sleep() throws InterruptedException {
+        getTimeUnit().sleep(getDuration());
+    }
+
     public TimePeriod add(TimePeriod timePeriod) {
         return add(timePeriod.getDuration(), timePeriod.getTimeUnit());
     }
@@ -59,7 +64,7 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
         if (duration == 0) {
             return this;
         }
-        TimeUnit min = timeUnit.compareTo(this.getTimeUnit()) < 0 ? timeUnit : this.getTimeUnit();
+        TimeUnit min = min(this.getTimeUnit(), timeUnit);
         try {
             return new TimePeriod(Math.addExact(this.getDuration(min), convertExact(duration, timeUnit, min)), min);
         }
@@ -74,7 +79,7 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
     }
 
     public TimePeriod addRandom(TimePeriod origin, TimePeriod bound) {
-        TimeUnit min = timeUnit.compareTo(this.getTimeUnit()) < 0 ? timeUnit : this.getTimeUnit();
+        TimeUnit min = min(origin.getTimeUnit(), bound.getTimeUnit());
         return addRandom(origin.getDuration(min), bound.getDuration(min), min);
     }
 
@@ -86,7 +91,7 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
         if (duration == 0) {
             return this;
         }
-        TimeUnit min = timeUnit.compareTo(this.getTimeUnit()) < 0 ? timeUnit : this.getTimeUnit();
+        TimeUnit min = min(timeUnit, this.getTimeUnit());
         try {
             return new TimePeriod(Math.subtractExact(this.getDuration(min), convertExact(duration, timeUnit, min)), min);
         }
@@ -125,7 +130,12 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
         return new ImmutableDate(date.getTime() - getDurationMillis());
     }
 
+    //<editor-fold desc="Parse">
     public static TimePeriod parse(String stringValue) {
+        return parse(stringValue, null);
+    }
+
+    public static TimePeriod parse(String stringValue, TimeUnit defaultTimeUnit) {
         if (stringValue == null) {
             return null;
         }
@@ -136,90 +146,109 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
         else if (stringValue.equals("0")) {
             return TimePeriod.ZERO;
         }
-        Matcher matcher = PARSE_PATTERN.matcher(stringValue);
-        long value = 0;
-        while (matcher.find()) { // TODO: сделать проверку на непрерывность нахождения вхождений, иначе парсится будет всякая чушь
-            long val = Long.parseLong(matcher.group(1));
+
+        Matcher matcher = PARSE_PATTERN.matcher(stringValue.trim());
+        MutableTimePeriod value = new MutableTimePeriod();
+        boolean negate = stringValue.charAt(0) == '-';
+        int lastPos = negate ? 1 : 0;
+
+        while (matcher.find()) {
+            if (lastPos != matcher.start()) {
+                throw new IllegalArgumentException(
+                        "Unparseable time period: " + stringValue +
+                        "; can't parse token '" + stringValue.substring(lastPos, matcher.start()) + "'");
+            }
+            lastPos = matcher.end();
+            long duration = Long.parseLong(matcher.group(1));
             String unit = matcher.group(2);
-            if (unit.startsWith("w")) {
-                value += TimeUnit.DAYS.toMillis(val * 7);
+            if (defaultTimeUnit != null && unit.isEmpty()) {
+                value.add(duration, defaultTimeUnit);
             }
             else if (unit.startsWith("d")) {
-                value += TimeUnit.DAYS.toMillis(val);
+                value.add(duration, TimeUnit.DAYS);
             }
             else if (unit.startsWith("h")) {
-                value += TimeUnit.HOURS.toMillis(val);
+                value.add(duration, TimeUnit.HOURS);
             }
-            else if (unit.startsWith("min") || unit.equals("m")) {
-                value += TimeUnit.MINUTES.toMillis(val);
+            else if (unit.equals("m") || unit.startsWith("min")) {
+                value.add(duration, TimeUnit.MINUTES);
             }
             else if (unit.startsWith("s")) {
-                value += TimeUnit.SECONDS.toMillis(val);
+                value.add(duration, TimeUnit.SECONDS);
             }
-            else if (unit.startsWith("ms") || unit.startsWith("mil") || unit.isEmpty()) {
-                value += val;
+            else if (unit.equals("ms") || unit.startsWith("mil")) {
+                value.add(duration, TimeUnit.MILLISECONDS);
+            }
+            else if (unit.equals("μs") || unit.equals("us") || unit.startsWith("mic")) {
+                value.add(duration, TimeUnit.MICROSECONDS);
+            }
+            else if (unit.startsWith("n")) {
+                value.add(duration, TimeUnit.NANOSECONDS);
             }
             else {
-                throw new IllegalArgumentException("Unparseable time period: " + stringValue);
+                throw new IllegalArgumentException("Unparseable time period: " + stringValue +
+                                                   "; can't parse token '" + matcher.group(0) + "'");
             }
         }
-        return new TimePeriod(stringValue.charAt(0) == '-' ? -value : value, TimeUnit.MILLISECONDS);
+        if (negate) {
+            value.negateExact();
+        }
+        return value.toTimePeriod();
     }
+    //</editor-fold>
 
+    //<editor-fold desc="ToString">
     @Override
     public String toString() {
-        try {
-            return toString(getDurationMillis());
-        }
-        catch (ArithmeticException ex) {
-            return getDuration() +
-                   (getTimeUnit() == TimeUnit.MILLISECONDS ? "ms"
-                                                           : getTimeUnit().toString().substring(0, 1).toLowerCase());
-        }
+        return toString(TimeUnit.NANOSECONDS);
     }
 
-    private static String toString(long period) {
-        if (period == 0) {
+    public String toString(TimeUnit minUnit) {
+        minUnit = getTimeUnit().ordinal() > minUnit.ordinal() ? getTimeUnit() : minUnit;
+        long duration = minUnit.convert(getDuration(), getTimeUnit());
+        StringBuilder sb = new StringBuilder();
+        if (duration == 0) {
             return "0";
         }
-        StringBuilder sb = new StringBuilder();
-        if (period < 0) {
+        else if (duration < 0) {
             sb.append("-");
-            period = -period;
+            duration = Math.negateExact(duration);
         }
-        long weeks = period / TimeUnit.DAYS.toMillis(7);
-        period %= TimeUnit.DAYS.toMillis(7);
-        long days = period / TimeUnit.DAYS.toMillis(1);
-        period %= TimeUnit.DAYS.toMillis(1);
-        long hours = period / TimeUnit.HOURS.toMillis(1);
-        period %= TimeUnit.HOURS.toMillis(1);
-        long minutes = period / TimeUnit.MINUTES.toMillis(1);
-        period %= TimeUnit.MINUTES.toMillis(1);
-        long seconds = period / TimeUnit.SECONDS.toMillis(1);
-        period %= TimeUnit.SECONDS.toMillis(1);
-        long milliSeconds = period;
-
-        if (weeks > 0) {
-            sb.append(weeks).append("w ");
+        for (TimeUnit unit : new TimeUnit[] { TimeUnit.DAYS, TimeUnit.HOURS, TimeUnit.MINUTES, TimeUnit.SECONDS,
+                                              TimeUnit.MILLISECONDS, TimeUnit.MICROSECONDS, TimeUnit.NANOSECONDS}) {
+            duration -= buildUnitAndGetRemainder(unit, duration, minUnit, sb);
         }
-        if (days > 0) {
-            sb.append(days).append("d ");
-        }
-        if (hours > 0) {
-            sb.append(hours).append("h ");
-        }
-        if (minutes > 0) {
-            sb.append(minutes).append("m ");
-        }
-        if (seconds > 0) {
-            sb.append(seconds).append("s ");
-        }
-        if (milliSeconds > 0) {
-            sb.append(milliSeconds).append("ms ");
-        }
-        return sb.toString().trim();
+        return sb.toString();
     }
 
+    private static long buildUnitAndGetRemainder(TimeUnit targetUnit, long duration, TimeUnit sourceUnit,
+                                                 StringBuilder sb) {
+        long value = targetUnit.convert(duration, sourceUnit);
+        if (value > 0) {
+            if (sb.length() > 1) {
+                sb.append(" ");
+            }
+            sb.append(value);
+            sb.append(abbreviate(targetUnit));
+        }
+        return sourceUnit.convert(value, targetUnit);
+    }
+
+    private static String abbreviate(TimeUnit timeUnit) {
+        switch (timeUnit) {
+            case DAYS:         return "d";
+            case HOURS:        return "h";
+            case MINUTES:      return "m";
+            case SECONDS:      return "s";
+            case MILLISECONDS: return "ms";
+            case MICROSECONDS: return "us";
+            case NANOSECONDS:  return "ns";
+            default:           throw new RuntimeException();
+        }
+    }
+    //</editor-fold>
+
+    //<editor-fold desc="Equals / HashCode">
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -237,7 +266,9 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
     public int hashCode() {
         return Objects.hash(getDuration(), getTimeUnit());
     }
+    //</editor-fold>
 
+    //<editor-fold desc="CompareTo">
     @Override
     public int compareTo(@Nonnull TimePeriod other) {
         if (getTimeUnit() == other.getTimeUnit()) {
@@ -250,9 +281,10 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
             return Long.compare(getDuration(), other.getDurationInexact(getTimeUnit()));
         }
     }
+    //</editor-fold>
 
-    public static TimePeriod between(long sinceMillis, long tillMillis) {
-        return new TimePeriod(tillMillis - sinceMillis, TimeUnit.MILLISECONDS);
+    public static TimePeriod between(long since, long till, TimeUnit timeUnit) {
+        return new TimePeriod(till - since, timeUnit);
     }
 
     public static TimePeriod between(@Nonnull Date since, @Nonnull Date till) {
@@ -260,19 +292,27 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
     }
 
     public static TimePeriod tillNowFrom(@Nonnull Date date) {
-        return between(date.getTime(), System.currentTimeMillis());
+        return between(date.getTime(), System.currentTimeMillis(), TimeUnit.MILLISECONDS);
     }
 
-    public static TimePeriod tillNowFrom(long utcTimeInMillis) {
-        return between(utcTimeInMillis, System.currentTimeMillis());
+    public static TimePeriod tillNowFromMillis(long utcTimeInMillis) {
+        return between(utcTimeInMillis, System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    public static TimePeriod tillNowFromNanos(long jvmNanoTime) {
+        return between(jvmNanoTime, System.nanoTime(), TimeUnit.NANOSECONDS);
     }
 
     public static TimePeriod sinceNowTo(@Nonnull Date date) {
-        return between(System.currentTimeMillis(), date.getTime());
+        return between(System.currentTimeMillis(), date.getTime(), TimeUnit.MILLISECONDS);
     }
 
-    public static TimePeriod sinceNowTo(long utcTimeInMillis) {
-        return between(System.currentTimeMillis(), utcTimeInMillis);
+    public static TimePeriod sinceNowToMillis(long utcTimeInMillis) {
+        return between(System.currentTimeMillis(), utcTimeInMillis, TimeUnit.MILLISECONDS);
+    }
+
+    public static TimePeriod sinceNowToNanos(long jvmNanoTime) {
+        return between(System.nanoTime(), jvmNanoTime, TimeUnit.NANOSECONDS);
     }
 
     private static long convertExact(long sourceDuration, TimeUnit sourceTimeUnit, TimeUnit destTimeUnit) {
@@ -284,8 +324,28 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
         return value;
     }
 
-    public void sleep() throws InterruptedException {
-        getTimeUnit().sleep(getDuration());
+    private static TimeUnit min(TimeUnit timeUnitA, TimeUnit timeUnitB) {
+        return timeUnitA.compareTo(timeUnitB) < 0 ? timeUnitA : timeUnitB;
+    }
+
+    private static class MutableTimePeriod {
+
+        private long duration;
+        private TimeUnit timeUnit = TimeUnit.DAYS;
+
+        public void add(long duration, TimeUnit timeUnit) {
+            TimeUnit min = min(this.timeUnit, timeUnit);
+            this.duration = min.convert(this.duration, this.timeUnit) + min.convert(duration, timeUnit);
+            this.timeUnit = min;
+        }
+
+        public void negateExact() {
+            duration = Math.negateExact(duration);
+        }
+
+        public TimePeriod toTimePeriod() {
+            return new TimePeriod(duration, timeUnit);
+        }
     }
 
     public static class Adapter extends XmlAdapter<String, TimePeriod> {
