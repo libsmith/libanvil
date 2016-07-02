@@ -1,9 +1,8 @@
-package org.libsmith.anvil;
+package org.libsmith.anvil.time;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.libsmith.anvil.Stopwatch.Group;
-import org.libsmith.anvil.time.TimePeriod;
+import org.libsmith.anvil.time.Stopwatch.Group;
 import org.mockito.Mockito;
 
 import java.util.concurrent.TimeUnit;
@@ -70,7 +69,6 @@ public class StopwatchTest {
         assertThat(Stopwatch.start("Test name", mockTimeSource).sample().toString()).isEqualTo("Test name 100ms");
     }
 
-
     @Test
     public void groupTest() {
         assertThat(Stopwatch.group("Simple group").getTimeSource()).isEqualTo(TimeSource.MILLIS_TIME_SOURCE);
@@ -102,6 +100,14 @@ public class StopwatchTest {
 
         assertThatThrownBy(() -> Stopwatch.group("").stop()).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> Stopwatch.group("").start("").stop().stop()).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    public void messageFormatConstructors() {
+        assertThat(Stopwatch.start("Task {0} ptn {1}", "zero", 42).toString()).startsWith("Task zero ptn 42");
+        assertThat(Stopwatch.group("Group {0} ptn {1}", "zero", 42).getGroupName()).startsWith("Group zero ptn 42");
+        assertThat(Stopwatch.group("").start("Task {0} ptn {1}", "zero", 42)
+                            .stop().getSamples().get(0).getOrigin().getTaskName()).startsWith("Task zero ptn 42");
     }
 
 

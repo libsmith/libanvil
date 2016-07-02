@@ -1,12 +1,11 @@
-package org.libsmith.anvil;
-
-import org.libsmith.anvil.time.TimePeriod;
+package org.libsmith.anvil.time;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import javax.annotation.concurrent.ThreadSafe;
 import java.io.Serializable;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -16,7 +15,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static org.libsmith.anvil.TimeSource.MILLIS_TIME_SOURCE;
+import static org.libsmith.anvil.time.TimeSource.MILLIS_TIME_SOURCE;
 
 /**
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
@@ -89,12 +88,20 @@ public class Stopwatch implements Serializable {
         return new Stopwatch(taskName, DEFAULT_TIME_SOURCE.getTime(), DEFAULT_TIME_SOURCE);
     }
 
+    public static Stopwatch start(@Nonnull String taskNameFormat, Object ... patternArguments) {
+        return start(MessageFormat.format(taskNameFormat, patternArguments));
+    }
+
     public static Stopwatch start(@Nonnull String taskName, @Nonnull TimeSource timeSource) {
         return new Stopwatch(taskName, timeSource.getTime(), timeSource);
     }
 
     public static Group group(@Nonnull String groupName) {
         return new Group(groupName, DEFAULT_TIME_SOURCE);
+    }
+
+    public static Group group(@Nonnull String groupNameFormat, Object ... patternArguments) {
+        return group(MessageFormat.format(groupNameFormat, patternArguments));
     }
 
     public static Group group(@Nonnull String groupName, @Nonnull TimeSource timeSource) {
@@ -136,6 +143,10 @@ public class Stopwatch implements Serializable {
                 current = Stopwatch.start(taskName, timeSource);
             }
             return this;
+        }
+
+        public Group start(@Nonnull String taskNameFormat, Object ... formatArguments) {
+            return start(MessageFormat.format(taskNameFormat, formatArguments));
         }
 
         public boolean isRunning() {
