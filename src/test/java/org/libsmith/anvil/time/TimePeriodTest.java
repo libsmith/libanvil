@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.*;
 
 /**
- * @author Dmitriy Balakin <balakin@loyaltyplant.com>
+ * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
  * @created 18.02.2016 3:00
  */
 public class TimePeriodTest extends AbstractTest {

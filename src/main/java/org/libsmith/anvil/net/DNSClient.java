@@ -265,7 +265,7 @@ public class DNSClient {
                 LOG.log(LogRecordBuilder.fine()
                                         .withMessage("Resolved {0} as {1} via {2}; {3}")
                                         .withParameters(type, list.isEmpty() ? "empty list" : list,
-                                                        serverName, TimePeriod.tillNowFrom(start)));
+                                                        serverName, TimePeriod.tillNowFromMillis(start)));
             }
 
             return list;
@@ -296,7 +296,7 @@ public class DNSClient {
 
     private static String formatException(String name, String serverName, long start, Throwable th) {
         return MessageFormat.format("Resolve {0} via {1} failed; {2}; {3}",
-                                    name, serverName, TimePeriod.tillNowFrom(start), th);
+                                    name, serverName, TimePeriod.tillNowFromMillis(start), th);
     }
 
     public static class ResolvingRuntimeException extends RuntimeException {
