@@ -159,6 +159,7 @@ public class LogRecordBuilder extends LogRecord {
             throw new UnsupportedOperationException();
         }
 
+        @Override
         public void setLoggerName(String name) {
             throw new UnsupportedOperationException();
         }
