@@ -1,5 +1,7 @@
 package org.libsmith.anvil.time;
 
+import org.libsmith.anvil.exception.ImmutabilityProhibitedException;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.sql.Timestamp;
@@ -10,7 +12,7 @@ import java.util.concurrent.TimeUnit;
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
  * @created 21.12.2015 22:09
  */
-public class ImmutableTimestamp extends Timestamp {
+public class ImmutableTimestamp extends Timestamp implements DateExtensions<ImmutableTimestamp> {
 
     private static final long serialVersionUID = -7579071256449554807L;
 
@@ -37,60 +39,45 @@ public class ImmutableTimestamp extends Timestamp {
         return getTime() < when.getTime();
     }
 
-    public ImmutableTimestamp add(long duration, @Nonnull TimeUnit unit) {
+    @Override
+    public @Nonnull ImmutableTimestamp add(long duration, @Nonnull TimeUnit unit) {
         return new ImmutableTimestamp(getTime() + unit.toMillis(duration));
     }
 
-    public ImmutableTimestamp add(TimePeriod timePeriod) {
-        return new ImmutableTimestamp(getTime() + timePeriod.getPeriod());
+    @Override
+    public @Nonnull ImmutableTimestamp add(@Nonnull TimePeriod timePeriod) {
+        return new ImmutableTimestamp(getTime() + timePeriod.getDurationMillis());
     }
 
-    public ImmutableTimestamp sub(long duration, @Nonnull TimeUnit unit) {
+    @Override
+    public @Nonnull ImmutableTimestamp sub(long duration, @Nonnull TimeUnit unit) {
         return new ImmutableTimestamp(getTime() - unit.toMillis(duration));
     }
 
-    public ImmutableTimestamp sub(TimePeriod timePeriod) {
-        return new ImmutableTimestamp(getTime() - timePeriod.getPeriod());
+    @Override
+    public @Nonnull ImmutableTimestamp sub(@Nonnull TimePeriod timePeriod) {
+        return new ImmutableTimestamp(getTime() - timePeriod.getDurationMillis());
     }
 
-    public TimePeriod sub(@Nonnull Date date) {
+    @Override
+    public @Nonnull TimePeriod sub(@Nonnull Date date) {
         return new TimePeriod(getTime() - date.getTime(), TimeUnit.MILLISECONDS);
     }
 
-    public ImmutableTimestamp quantize(@Nonnull TimeUnit quantumUnit) {
+    @Override
+    public @Nonnull ImmutableTimestamp quantize(@Nonnull TimeUnit quantumUnit) {
         return quantize(this, quantumUnit);
     }
 
     //@Contract("null, _ -> null")
     public static ImmutableTimestamp quantize(@Nullable Timestamp timestamp, @Nonnull TimeUnit quantumUnit) {
         return timestamp == null ? null
-                : new ImmutableTimestamp(quantumUnit.toMillis(quantumUnit.convert(timestamp.getTime(), TimeUnit.MILLISECONDS)));
-    }
-
-    @SafeVarargs
-    public static <T extends Timestamp> T max(T ... values) {
-        T ret = null;
-        for (T value : values) {
-            if (value != null && (ret == null || ret.getTime() < value.getTime())) {
-                ret = value;
-            }
-        }
-        return ret;
-    }
-
-    @SafeVarargs
-    public static <T extends Timestamp> T min(T ... values) {
-        T ret = null;
-        for (T value : values) {
-            if (value != null && (ret == null || ret.getTime() > value.getTime())) {
-                ret = value;
-            }
-        }
-        return ret;
+                                 : new ImmutableTimestamp(quantumUnit.toMillis(
+                                         quantumUnit.convert(timestamp.getTime(), TimeUnit.MILLISECONDS)));
     }
 
     //@Contract("null -> null")
-    public static ImmutableTimestamp valueOf(@Nullable Date date) {
+    public static ImmutableTimestamp of(@Nullable Date date) {
         return date == null ? null : date instanceof ImmutableTimestamp ? (ImmutableTimestamp) date : new ImmutableTimestamp(date);
     }
 
@@ -100,49 +87,54 @@ public class ImmutableTimestamp extends Timestamp {
 
     //<editor-fold desc="Delegate methods">
     @Override
+    public ImmutableTimestamp clone() {
+        return (ImmutableTimestamp) super.clone();
+    }
+
+    @Override
     public void setTime(long time) {
-        throw new UnsupportedOperationException();
+        throw new ImmutabilityProhibitedException();
     }
 
     @Override
     public void setNanos(int n) {
-        throw new UnsupportedOperationException();
+        throw new ImmutabilityProhibitedException();
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public void setYear(int year) {
-        throw new UnsupportedOperationException();
+        throw new ImmutabilityProhibitedException();
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public void setMonth(int month) {
-        throw new UnsupportedOperationException();
+        throw new ImmutabilityProhibitedException();
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public void setDate(int date) {
-        throw new UnsupportedOperationException();
+        throw new ImmutabilityProhibitedException();
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public void setHours(int hours) {
-        throw new UnsupportedOperationException();
+        throw new ImmutabilityProhibitedException();
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public void setMinutes(int minutes) {
-        throw new UnsupportedOperationException();
+        throw new ImmutabilityProhibitedException();
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public void setSeconds(int seconds) {
-        throw new UnsupportedOperationException();
+        throw new ImmutabilityProhibitedException();
     }
     //</editor-fold>
 }
