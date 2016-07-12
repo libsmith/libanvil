@@ -1,6 +1,6 @@
-package org.libsmith.anvil.net;
+package org.libsmith.anvil.net.mail;
 
-import org.libsmith.anvil.net.MailDelivery.DeliveryResult;
+import org.libsmith.anvil.net.mail.MailDelivery.DeliveryResult;
 
 import javax.activation.DataHandler;
 import javax.activation.DataSource;
@@ -13,8 +13,7 @@ import javax.mail.internet.MimeUtility;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-
-import static org.libsmith.anvil.net.MailUtils.parseAddress;
+import java.util.function.Supplier;
 
 
 /**
@@ -31,12 +30,20 @@ public class MailMessage extends MimeMessage {
         return new Builder();
     }
 
-    public DeliveryResult sendVia(MailDelivery mailDelivery) throws IOException, MessagingException {
+    public DeliveryResult sendVia(MailDelivery mailDelivery) {
         return mailDelivery.send(this);
+    }
+
+    public DeliveryResult sendVia(Supplier<? extends MailDelivery> mailDelivery) {
+        return sendVia(mailDelivery.get());
     }
 
     public CompletableFuture<DeliveryResult> sendAsyncVia(MailDelivery mailDelivery) {
         return mailDelivery.sendAsync(this);
+    }
+
+    public CompletableFuture<DeliveryResult> sendAsyncVia(Supplier<? extends MailDelivery> mailDelivery) {
+        return sendAsyncVia(mailDelivery.get());
     }
 
     public static class Builder {
@@ -171,28 +178,28 @@ public class MailMessage extends MimeMessage {
                 MailMessage mailMessage = new MailMessage();
                 if (toRecipients != null) {
                     for (String toRecipient : toRecipients) {
-                        mailMessage.addRecipient(Message.RecipientType.TO, parseAddress(toRecipient));
+                        mailMessage.addRecipient(Message.RecipientType.TO, MailUtils.parseAddress(toRecipient));
                     }
                 }
                 if (ccRecipients != null) {
                     for (String ccRecipient : ccRecipients) {
-                        mailMessage.addRecipient(Message.RecipientType.CC, parseAddress(ccRecipient));
+                        mailMessage.addRecipient(Message.RecipientType.CC, MailUtils.parseAddress(ccRecipient));
                     }
                 }
                 if (bccRecipients != null) {
                     for (String bccRecipient : bccRecipients) {
-                        mailMessage.addRecipient(Message.RecipientType.BCC, parseAddress(bccRecipient));
+                        mailMessage.addRecipient(Message.RecipientType.BCC, MailUtils.parseAddress(bccRecipient));
                     }
                 }
                 if (replyTo != null) {
                     Address[] addresses = new Address[replyTo.size()];
                     for (int i = 0; i < addresses.length; i++) {
-                        addresses[i] = parseAddress(replyTo.get(i));
+                        addresses[i] = MailUtils.parseAddress(replyTo.get(i));
                     }
                     mailMessage.setReplyTo(addresses);
                 }
                 if (from != null) {
-                    mailMessage.setFrom(parseAddress(from));
+                    mailMessage.setFrom(MailUtils.parseAddress(from));
                 }
                 if (subject != null) {
                     mailMessage.setSubject(subject, "UTF-8");

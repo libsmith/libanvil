@@ -1,4 +1,4 @@
-package org.libsmith.anvil.net;
+package org.libsmith.anvil.net.mail;
 
 import com.sun.istack.internal.NotNull;
 import org.libsmith.anvil.io.CountingOutputStream;
@@ -10,10 +10,8 @@ import javax.annotation.Nonnull;
 import javax.mail.*;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.PrintStream;
+import javax.mail.internet.MimeUtility;
+import java.io.*;
 import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -32,9 +30,12 @@ public class JavaMailDelivery implements MailDelivery {
     private static final Logger LOG = Logger.getLogger(JavaMailDelivery.class.getName());
 
     enum Header {
+        X_ORIGINAL_FROM("X-Original-From"),
         X_ORIGINAL_TO("X-Original-TO"),
         X_ORIGINAL_CC("X-Original-CC"),
-        X_ORIGINAL_BCC("X-Original-BCC");
+        X_ORIGINAL_BCC("X-Original-BCC"),
+        X_ORIGINAL_REPLY_TO("X-Original-Reply-To"),
+        X_ORIGINAL_SUBJECT("X-Original-Subject");
 
         public final String NAME;
 
@@ -76,129 +77,132 @@ public class JavaMailDelivery implements MailDelivery {
 
     @Override
     public @Nonnull CompletableFuture<DeliveryResult> sendAsync(final @Nonnull Message message) {
-        try {
-            Supplier<DeliveryResult> task = makeTask(message);
-            if (executor == null) {
-                return CompletableFuture.supplyAsync(task);
-            }
-            else {
-                return CompletableFuture.supplyAsync(task, executor);
-            }
+        Supplier<DeliveryResult> task = makeTask(message);
+        if (executor == null) {
+            return CompletableFuture.supplyAsync(task);
         }
-        catch (Exception ex) {
-            return CompletableFuture.completedFuture(DeliveryResult.Builder.queued(message).error(ex));
+        else {
+            return CompletableFuture.supplyAsync(task, executor);
         }
     }
 
     private @NotNull Supplier<DeliveryResult> makeTask(final @Nonnull Message message) {
         DeliveryResult.Builder builder = DeliveryResult.Builder.queued(message);
-        SessionLog sessionLog = this.sessionLog == null ? SessionLog.NONE : this.sessionLog;
-        try {
-            final Session session = this.sessionFactory == null ? null : this.sessionFactory.get();
+        return () -> {
+            builder.process();
+            try {
+                final Session session = this.sessionFactory == null ? null : this.sessionFactory.get();
 
-            final Consumer<Level> debugLogFlusher;
-            if (session != null && sessionLog != SessionLog.NONE) {
-                DataPartLessPrintStreamBuffer debugLogBuffer = new DataPartLessPrintStreamBuffer();
-                session.setDebugOut(debugLogBuffer);
-                session.setDebug(true);
-                debugLogFlusher = (level) -> {
-                    debugLogBuffer.flush();
-                    LOG.log(level, debugLogBuffer.toString());
-                    if (level == Level.SEVERE) {
-                        try {
-                            File mailFile = File.createTempFile("failed-email-", ".eml");
-                            try (FileOutputStream fileOutputStream = new FileOutputStream(mailFile)) {
-                                message.writeTo(fileOutputStream);
-                                LOG.severe("Email which screwed up was written to file " + mailFile);
+                /* Debug logging setup */
+                final SessionLog sessionLog = this.sessionLog == null ? SessionLog.NONE : this.sessionLog;
+                final Consumer<Level> debugLogFlusher;
+                if (session != null && sessionLog != SessionLog.NONE) {
+                    DataPartLessPrintStreamBuffer debugLogBuffer = new DataPartLessPrintStreamBuffer();
+                    session.setDebugOut(debugLogBuffer);
+                    session.setDebug(true);
+                    debugLogFlusher = (level) -> {
+                        debugLogBuffer.flush();
+                        LOG.log(level, debugLogBuffer.toString());
+                        if (level == Level.SEVERE) {
+                            try {
+                                File mailFile = File.createTempFile("failed-email-", ".eml");
+                                mailFile.deleteOnExit();
+                                try (FileOutputStream fileOutputStream = new FileOutputStream(mailFile)) {
+                                    message.writeTo(fileOutputStream);
+                                    LOG.severe("Email which screwed up was written to temporary file " + mailFile);
+                                }
+                            }
+                            catch (Exception ex) {
+                                LOG.log(Level.SEVERE, "Error while write email to file", ex);
                             }
                         }
-                        catch (Exception ex) {
-                            LOG.log(Level.SEVERE, "Error while write email to file", ex);
+                    };
+                }
+                else {
+                    debugLogFlusher = null;
+                }
+
+                /* Apply limits */
+                {
+                    Long limit = session == null ? null : (Long) session.getProperties().get("session.limit");
+                    if (limit != null && limit > 0) {
+                        long size = message.getSize();
+                        if (size < 0) {
+                            CountingOutputStream counter = new CountingOutputStream();
+                            message.writeTo(counter);
+                            size = counter.getCount();
+                        }
+                        if (size > limit) {
+                            return builder.error(new MessagingException(
+                                                 "Message size " + size + " exceeds the maximum of " + limit));
                         }
                     }
-                };
-            }
-            else {
-                debugLogFlusher = null;
-            }
+                }
 
-            /* Apply limits */ {
-                Long limit = session == null ? null : (Long) session.getProperties().get("session.limit");
-                if (limit != null && limit > 0) {
-                    long size = message.getSize();
-                    if (size < 0) {
-                        CountingOutputStream counter = new CountingOutputStream();
-                        message.writeTo(counter);
-                        size = counter.getCount();
-                    }
-                    if (size > limit) {
-                        throw new IllegalArgumentException("Message size " + size + " exceeds the maximum of " + limit);
+                /* Apply default from address */
+                {
+                    Address[] originalFrom = message.getFrom();
+                    if (originalFrom == null || originalFrom.length == 0) {
+                        Object from = session == null ? null : session.getProperties().get("session.from");
+                        if (from != null) {
+                            message.setFrom(MailUtils.parseAddress(from.toString()));
+                        }
                     }
                 }
-            }
 
-            /* Apply default from address */ {
-                Address[] originalFrom = message.getFrom();
-                if (originalFrom == null || originalFrom.length == 0) {
-                    Object from = session == null ? null : session.getProperties().get("session.from");
-                    if (from instanceof String) {
-                        message.setFrom(MailUtils.parseAddress(from.toString()));
+                final Strings.LazyStringBuilder messageDescriptionBuilder = Strings.lazyStringBuilder();
+
+                /* Overriding data */
+                final Address[] targetRecipients;
+                final Address[] originalRecipients;
+                if (override != null) {
+                    Address[] overriddenRecipients = override.getAllRecipients();
+                    if (overriddenRecipients != null && overriddenRecipients.length > 0) {
+                        originalRecipients = message.getAllRecipients();
+                        targetRecipients = overriddenRecipients;
                     }
-                    else if (from instanceof Address) {
-                        message.setFrom((Address) from);
+                    else {
+                        targetRecipients = message.getAllRecipients();
+                        originalRecipients = null;
                     }
-                }
-            }
-
-            final Strings.LazyStringBuilder messageDescriptionBuilder = Strings.lazyStringBuilder();
-
-            /* Overriding data */
-            final Address[] targetRecipients;
-            if (override != null) {
-                Address[] overriddenRecipients = override.getAllRecipients();
-                if (overriddenRecipients != null && overriddenRecipients.length > 0) {
-                    messageDescriptionBuilder.append(
-                            Strings.lazy(", original-recipients: {0}",
-                                         Arrays.toString(message.getAllRecipients())));
-                    targetRecipients = overriddenRecipients;
+                    applyOverridesToMessage(message, override);
                 }
                 else {
                     targetRecipients = message.getAllRecipients();
+                    originalRecipients = null;
                 }
-                applyOverridesToMessage(message, override);
-            }
-            else {
-                targetRecipients = message.getAllRecipients();
-            }
 
-            message.saveChanges();
+                message.saveChanges();
 
-            messageDescriptionBuilder.append(Strings.lazy("id: {0}, recipients: {1}, subject: \"{2}\"",
-                                                          message instanceof MimeMessage
-                                                            ? ((MimeMessage) message).getMessageID()
-                                                            : System.identityHashCode(message),
-                                                          Arrays.toString(targetRecipients),
-                                                          message.getSubject()));
+                if (message instanceof MimeMessage) {
+                    messageDescriptionBuilder.append(Strings.lazy("id: {0}, ", ((MimeMessage) message).getMessageID()));
+                }
 
-            if (session == null) {
-                LOG.fine(Strings.lazy("Email message suppressed because transport session is not defined {0}",
-                                      messageDescriptionBuilder));
-                return builder::ignored;
-            }
+                messageDescriptionBuilder.append(Strings.lazy("recipients: {0}, subject: \"{1}\"",
+                                                              Arrays.toString(targetRecipients),
+                                                              message.getSubject()));
+                if (originalRecipients != null) {
+                    messageDescriptionBuilder.append(
+                            Strings.lazy(", original-recipients: {0}", Arrays.toString(originalRecipients)));
+                }
 
-            String sessionName = session.getProperty("session.name");
-            if (sessionName != null) {
-                messageDescriptionBuilder.append(", session: ").append(sessionName);
-            }
+                if (session == null) {
+                    LOG.fine(Strings.lazy("[{0}] Email message suppressed because transport session is not defined {1}",
+                                          getName(), messageDescriptionBuilder));
+                    return builder.ignored();
+                }
 
-            if (targetRecipients == null || targetRecipients.length == 0) {
-                LOG.fine(Strings.lazy("Email message suppressed because empty message destinations {0}",
-                                      messageDescriptionBuilder));
-                return builder::ignored;
-            }
+                String sessionName = session.getProperty("session.name");
+                if (sessionName != null) {
+                    messageDescriptionBuilder.append(", session: \"").append(sessionName).append("\"");
+                }
 
-            return () -> {
-                builder.process();
+                if (targetRecipients == null || targetRecipients.length == 0) {
+                    LOG.fine(Strings.lazy("[{0}] Email message suppressed because empty message destinations {1}",
+                                          getName(), messageDescriptionBuilder));
+                    return builder.ignored();
+                }
+
                 Stopwatch.Group stopwatch = Stopwatch.group("Process message ''{0}''", messageDescriptionBuilder);
                 Map<String, TransportTarget> transportMap = new HashMap<>();
                 try {
@@ -236,7 +240,8 @@ public class JavaMailDelivery implements MailDelivery {
                     if (sessionLog != SessionLog.NONE) {
                         debugLogFlusher.accept(Level.SEVERE);
                     }
-                    LOG.severe(Strings.lazy("[{0}] Message send error, authentication failed. {1}", getName(), stopwatch));
+                    LOG.severe(Strings.lazy("[{0}] Message send error, authentication failed. {1}",
+                                            getName(), stopwatch));
                     return builder.error(ex);
                 }
                 catch (Exception ex) {
@@ -256,31 +261,60 @@ public class JavaMailDelivery implements MailDelivery {
                             entry.getValue().transport.close();
                         }
                         catch (Exception ex) {
-                            LOG.log(LogRecordBuilder.severe("[{0}] Error closing transport {1}", getName(), entry.getKey())
+                            LOG.log(LogRecordBuilder.severe("[{0}] Error closing transport {1}",
+                                                            getName(), entry.getKey())
                                                     .withThrown(ex));
                         }
                     }
                 }
-            };
-        }
-        catch (Exception ex) {
-            return () -> builder.error(ex);
-        }
+            }
+            catch (IOException | MessagingException ex) {
+                return builder.error(ex);
+            }
+        };
     }
 
     private static void applyOverridesToMessage(Message message, Message override) throws MessagingException {
-        Address[] originalTO = message.getRecipients(Message.RecipientType.TO);
-        Address[] originalCC = message.getRecipients(Message.RecipientType.CC);
-        Address[] originalBCC = message.getRecipients(Message.RecipientType.BCC);
-        message.setRecipients(Message.RecipientType.TO, override.getRecipients(Message.RecipientType.TO));
-        message.setRecipients(Message.RecipientType.CC, override.getRecipients(Message.RecipientType.CC));
-        message.setRecipients(Message.RecipientType.BCC, override.getRecipients(Message.RecipientType.BCC));
-        message.setHeader(Header.X_ORIGINAL_TO.NAME, InternetAddress.toString(originalTO));
-        message.setHeader(Header.X_ORIGINAL_CC.NAME, InternetAddress.toString(originalCC));
-        message.setHeader(Header.X_ORIGINAL_BCC.NAME, InternetAddress.toString(originalBCC));
-        Address[] fromOverride = message.getFrom();
-        if (fromOverride != null && fromOverride.length > 0) {
-            message.setFrom(fromOverride[0]);
+        Address[] overriddenRecipients = override.getAllRecipients();
+        if (overriddenRecipients != null && overriddenRecipients.length > 0) {
+            Address[] originalTO = message.getRecipients(Message.RecipientType.TO);
+            Address[] originalCC = message.getRecipients(Message.RecipientType.CC);
+            Address[] originalBCC = message.getRecipients(Message.RecipientType.BCC);
+            message.setRecipients(Message.RecipientType.TO, override.getRecipients(Message.RecipientType.TO));
+            message.setRecipients(Message.RecipientType.CC, override.getRecipients(Message.RecipientType.CC));
+            message.setRecipients(Message.RecipientType.BCC, override.getRecipients(Message.RecipientType.BCC));
+            message.setHeader(Header.X_ORIGINAL_TO.NAME, InternetAddress.toString(originalTO));
+            message.setHeader(Header.X_ORIGINAL_CC.NAME, InternetAddress.toString(originalCC));
+            message.setHeader(Header.X_ORIGINAL_BCC.NAME, InternetAddress.toString(originalBCC));
+        }
+
+        Address[] overrideFrom = override.getFrom();
+        if (overrideFrom != null && overrideFrom.length == 1) {
+            message.setHeader(Header.X_ORIGINAL_FROM.NAME, InternetAddress.toString(message.getFrom()));
+            message.setFrom(overrideFrom[0]);
+        }
+
+        Address[] overrideReplyTo = override.getReplyTo();
+        if (overrideReplyTo != null) {
+            message.setHeader(Header.X_ORIGINAL_REPLY_TO.NAME, InternetAddress.toString(message.getReplyTo()));
+            message.setReplyTo(overrideReplyTo);
+        }
+
+        String overrideSubject = override.getSubject();
+        if (overrideSubject != null) {
+            try {
+                message.setHeader(Header.X_ORIGINAL_SUBJECT.NAME,
+                                  MimeUtility.fold(9, MimeUtility.encodeText(message.getSubject(), "UTF-8", null)));
+                if (message instanceof MimeMessage) {
+                    ((MimeMessage) message).setSubject(overrideSubject, "UTF-8");
+                }
+                else {
+                    message.setSubject(overrideSubject);
+                }
+            }
+            catch (UnsupportedEncodingException ex) {
+                throw new RuntimeException(ex);
+            }
         }
     }
 

@@ -10,8 +10,14 @@ public class UncheckedException extends RuntimeException {
 
     private static final long serialVersionUID = -3877272876662615234L;
 
-    public UncheckedException(Exception ex) {
+    protected UncheckedException(Throwable ex) {
         super(ex);
+    }
+
+    public static RuntimeException wrap(Throwable throwable) {
+        return throwable instanceof RuntimeException
+                    ? (RuntimeException) throwable
+                    : new UncheckedException(throwable);
     }
 
     public static <T> T wrap(Callable<T> callback) {

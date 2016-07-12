@@ -1,4 +1,4 @@
-package org.libsmith.anvil.net;
+package org.libsmith.anvil.net.mail;
 
 import org.libsmith.anvil.UncheckedException;
 import org.libsmith.anvil.time.ImmutableDate;
@@ -49,7 +49,7 @@ public interface MailDelivery {
 
         public DeliveryResult throwExceptionOnError() {
             if (getThrowable() != null) {
-                throw UncheckedException.rethrow(getThrowable());
+                throw UncheckedException.wrap(getThrowable());
             }
             return this;
         }

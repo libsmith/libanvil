@@ -1,4 +1,4 @@
-package org.libsmith.anvil.net;
+package org.libsmith.anvil.net.mail;
 
 import javax.annotation.Nullable;
 import javax.mail.Address;
