@@ -1,7 +1,6 @@
 package org.libsmith.anvil.text;
 
 import javax.annotation.Nonnull;
-import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -111,19 +110,19 @@ public class Strings {
         }
 
         @Override
-        public LazyStringBuilder append(CharSequence csq) throws IOException {
+        public LazyStringBuilder append(CharSequence csq) {
             suppliers.add(() -> csq);
             return this;
         }
 
         @Override
-        public LazyStringBuilder append(CharSequence csq, int start, int end) throws IOException {
+        public LazyStringBuilder append(CharSequence csq, int start, int end) {
             suppliers.add(() -> (csq == null ? "null" : csq).subSequence(start, end));
             return this;
         }
 
         @Override
-        public LazyStringBuilder append(char c) throws IOException {
+        public LazyStringBuilder append(char c) {
             suppliers.add(() -> c);
             return this;
         }
