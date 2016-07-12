@@ -2,6 +2,7 @@ package org.libsmith.anvil.time;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.libsmith.anvil.AbstractTest;
 import org.libsmith.anvil.time.Stopwatch.Group;
 import org.mockito.Mockito;
 
@@ -15,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
  * @created 02.07.16
  */
-public class StopwatchTest {
+public class StopwatchTest extends AbstractTest {
 
     private static final TimeUnit DEFAULT_RESOLUTION = TimeUnit.MICROSECONDS;
     private static final long DEFAULT_ITERATION = 100_000;

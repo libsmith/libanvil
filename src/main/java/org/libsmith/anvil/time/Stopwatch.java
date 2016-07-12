@@ -28,11 +28,11 @@ public class Stopwatch implements Serializable {
     private static final long serialVersionUID = 6703242737042402435L;
     private static final TimeSource DEFAULT_TIME_SOURCE = MILLIS_TIME_SOURCE;
 
-    private final @Nullable String taskName;
+    private final @Nullable CharSequence taskName;
     private final long originTime;
     private final TimeSource timeSource;
 
-    protected Stopwatch(@Nullable String taskName, long originTime, TimeSource timeSource) {
+    protected Stopwatch(@Nullable CharSequence taskName, long originTime, TimeSource timeSource) {
         this.originTime = originTime;
         this.timeSource = timeSource;
         this.taskName = taskName;
@@ -46,7 +46,7 @@ public class Stopwatch implements Serializable {
         return timeSource;
     }
 
-    public @Nullable String getTaskName() {
+    public @Nullable CharSequence getTaskName() {
         return taskName;
     }
 
@@ -75,8 +75,19 @@ public class Stopwatch implements Serializable {
         }
 
         @Override
-        public String toString(TimeUnit timeUnit) {
-            return taskName == null ? super.toString(timeUnit) : taskName + " " + super.toString(timeUnit);
+        public String toString() {
+            return toString(getTimeUnit(), true);
+        }
+
+        @Override
+        public String toString(TimeUnit minUnit) {
+            return toString(getTimeUnit(), true);
+        }
+
+        @Override
+        public String toString(TimeUnit timeUnit, boolean abbreviateZero) {
+            String value = super.toString(timeUnit, abbreviateZero);
+            return taskName == null ? value : taskName + " " + value;
         }
     }
 
@@ -88,42 +99,42 @@ public class Stopwatch implements Serializable {
         return new Stopwatch(taskName, DEFAULT_TIME_SOURCE.getTime(), DEFAULT_TIME_SOURCE);
     }
 
-    public static Stopwatch start(@Nonnull String taskNameFormat, Object ... patternArguments) {
-        return start(MessageFormat.format(taskNameFormat, patternArguments));
+    public static Stopwatch start(@Nonnull CharSequence taskNamePattern, Object ... patternArguments) {
+        return start(MessageFormat.format(taskNamePattern.toString(), patternArguments));
     }
 
-    public static Stopwatch start(@Nonnull String taskName, @Nonnull TimeSource timeSource) {
+    public static Stopwatch start(@Nonnull CharSequence taskName, @Nonnull TimeSource timeSource) {
         return new Stopwatch(taskName, timeSource.getTime(), timeSource);
     }
 
-    public static Group group(@Nonnull String groupName) {
+    public static Group group(@Nonnull CharSequence groupName) {
         return new Group(groupName, DEFAULT_TIME_SOURCE);
     }
 
-    public static Group group(@Nonnull String groupNameFormat, Object ... patternArguments) {
-        return group(MessageFormat.format(groupNameFormat, patternArguments));
+    public static Group group(@Nonnull CharSequence groupNameFormat, Object ... patternArguments) {
+        return group(MessageFormat.format(groupNameFormat.toString(), patternArguments));
     }
 
-    public static Group group(@Nonnull String groupName, @Nonnull TimeSource timeSource) {
+    public static Group group(@Nonnull CharSequence groupName, @Nonnull TimeSource timeSource) {
         return new Group(groupName, timeSource);
     }
 
     @ThreadSafe
     public static class Group implements Iterable<Sample> {
 
-        private final String groupName;
+        private final CharSequence groupName;
         private final TimeSource timeSource;
         private final List<Sample> samples;
 
         private Stopwatch current;
 
-        private Group(@Nonnull String groupName, @Nonnull TimeSource timeSource) {
+        private Group(@Nonnull CharSequence groupName, @Nonnull TimeSource timeSource) {
             this.groupName = groupName;
             this.timeSource = timeSource;
             this.samples = Collections.synchronizedList(new ArrayList<>());
         }
 
-        public String getGroupName() {
+        public CharSequence getGroupName() {
             return groupName;
         }
 
@@ -180,10 +191,14 @@ public class Stopwatch implements Serializable {
             return toString(getTimeSource().getResolution());
         }
 
-        public String toString(TimeUnit timeUnit) {
-            return getGroupName() + " " + TimePeriod.sum(getSamples()) + " [" +
-                   stream().map(v -> v.toString(timeUnit)).collect(Collectors.joining("; ")) +
-                   (current != null ? "; " + current.sample().toString(timeUnit) : "") + "]";
+        public synchronized String toString(TimeUnit timeUnit) {
+            List<Sample> samples = getSamples();
+            if (isRunning()) {
+                samples = new ArrayList<>(samples);
+                samples.add(current.sample());
+            }
+            return getGroupName() + " " + TimePeriod.sum(samples).toString(timeUnit, true) + " [" +
+                   samples.stream().map(v -> v.toString(timeUnit)).collect(Collectors.joining("; ")) + "]";
         }
     }
 }
