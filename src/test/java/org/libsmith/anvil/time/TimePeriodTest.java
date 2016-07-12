@@ -186,6 +186,7 @@ public class TimePeriodTest extends AbstractTest {
                     );
 
         assertEquals("0", TimePeriod.ZERO.toString());
+        assertEquals("0h", TimePeriod.ZERO.toString(TimeUnit.HOURS, true));
     }
 
     @Test
@@ -233,6 +234,11 @@ public class TimePeriodTest extends AbstractTest {
     public void between() {
         assertEquals(2, TimePeriod.between(new Date(1000), new Date(3000)).getDuration(TimeUnit.SECONDS));
         assertEquals(4, TimePeriod.between(6000, 10000, TimeUnit.MILLISECONDS).getDuration(TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void betweenMillis() {
+        assertEquals(4, TimePeriod.betweenMillis(6000, 10000).getDuration(TimeUnit.SECONDS));
     }
 
     @Test(timeout = 1000)

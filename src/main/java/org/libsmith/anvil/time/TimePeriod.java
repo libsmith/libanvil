@@ -201,15 +201,19 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
     //<editor-fold desc="ToString">
     @Override
     public String toString() {
-        return toString(TimeUnit.NANOSECONDS);
+        return toString(TimeUnit.NANOSECONDS, false);
     }
 
     public String toString(TimeUnit minUnit) {
+        return toString(timeUnit, false);
+    }
+
+    public String toString(TimeUnit minUnit, boolean abbreviateZero) {
         minUnit = getTimeUnit().ordinal() > minUnit.ordinal() ? getTimeUnit() : minUnit;
         long duration = minUnit.convert(getDuration(), getTimeUnit());
         StringBuilder sb = new StringBuilder();
         if (duration == 0) {
-            return "0";
+            return abbreviateZero ? "0" + abbreviate(minUnit) : "0";
         }
         else if (duration < 0) {
             sb.append("-");
@@ -235,7 +239,7 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
         return sourceUnit.convert(value, targetUnit);
     }
 
-    private static String abbreviate(TimeUnit timeUnit) {
+    protected static String abbreviate(TimeUnit timeUnit) {
         switch (timeUnit) {
             case DAYS:         return "d";
             case HOURS:        return "h";
@@ -283,6 +287,10 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
         }
     }
     //</editor-fold>
+
+    public static TimePeriod betweenMillis(long since, long till) {
+        return new TimePeriod(till - since, TimeUnit.MILLISECONDS);
+    }
 
     public static TimePeriod between(long since, long till, TimeUnit timeUnit) {
         return new TimePeriod(till - since, timeUnit);
