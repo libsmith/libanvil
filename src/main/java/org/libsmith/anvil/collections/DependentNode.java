@@ -10,7 +10,9 @@ import java.util.stream.Collectors;
  */
 public interface DependentNode<T extends DependentNode<T>> {
 
-    Collection<T> getDependencies();
+    default Collection<T> getDependencies() {
+        return Collections.emptySet();
+    }
 
     static <T extends DependentNode<T>> void dependentSort(List<T> dependentGraph) {
         dependentSort(dependentGraph, true);
