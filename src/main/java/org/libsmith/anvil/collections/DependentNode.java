@@ -1,5 +1,6 @@
 package org.libsmith.anvil.collections;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.*;
 import java.util.function.Consumer;
@@ -15,8 +16,7 @@ public interface DependentNode<T extends DependentNode<T>> {
         return Collections.emptySet();
     }
 
-    default @Nullable Collection<T> getAllDependencies() {
-
+    default @Nonnull Collection<T> getAllDependencies() {
         Set<T> depedencies = new LinkedHashSet<>();
         Collection<T> row = this.getDependencies();
         while (row != null && !row.isEmpty()) {
@@ -105,8 +105,8 @@ public interface DependentNode<T extends DependentNode<T>> {
         }
 
         public <T extends DependentNode<T>> CircularDependencyException(List<? extends T> chain) {
-            this("Detected circular dependency through chain " + chain.stream().map(Objects::toString)
-                                                                      .collect(Collectors.joining(" -> ")),
+            this("Detected circular dependency through chain '" + chain.stream().map(Objects::toString)
+                                                                       .collect(Collectors.joining("' -> '")) + "'",
                  chain);
         }
 
