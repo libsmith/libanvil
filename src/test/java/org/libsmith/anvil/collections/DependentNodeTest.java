@@ -55,8 +55,7 @@ public class DependentNodeTest {
         wxyz.addDependency(jkl).addDependency(pqrs);
         pqrs.addDependency(jkl);
         DependentNode.dependentSort(graph);
-        System.out.println(graph);
-
+        assertThat(graph).containsExactly(abc, jkl, pqrs, wxyz, def, ghi, mno, tuv);
     }
 
     @Test
