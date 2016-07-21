@@ -101,6 +101,22 @@ public class DependentNodeTest {
                                  "Dependency circular chain assertion failure, must be " + circularChain);
     }
 
+    @Test
+    public void getAllDependenciesTest() throws Exception {
+        abc.addDependency(def);
+        def.addDependency(ghi).addDependency(jkl);
+        assertThat(abc.getAllDependencies()).containsExactly(def, ghi, jkl);
+    }
+
+    @Test
+    public void getAllDependenciesWithLoopingTest() throws Exception {
+        abc.addDependency(def).addDependency(mno);
+        def.addDependency(pqrs).addDependency(jkl);
+        jkl.addDependency(abc);
+        mno.addDependency(def);
+        assertThat(abc.getAllDependencies()).containsExactly(def, mno, pqrs, jkl);
+    }
+
     private static class DependentString implements DependentNode<DependentString> {
 
         private final String string;

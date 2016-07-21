@@ -1,5 +1,6 @@
 package org.libsmith.anvil.collections;
 
+import javax.annotation.Nullable;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -10,8 +11,27 @@ import java.util.stream.Collectors;
  */
 public interface DependentNode<T extends DependentNode<T>> {
 
-    default Collection<T> getDependencies() {
+    default @Nullable Collection<T> getDependencies() {
         return Collections.emptySet();
+    }
+
+    default @Nullable Collection<T> getAllDependencies() {
+
+        Set<T> depedencies = new LinkedHashSet<>();
+        Collection<T> row = this.getDependencies();
+        while (row != null && !row.isEmpty()) {
+            Collection<T> newRow = new ArrayList<>();
+            for (T dep : row) {
+                if (!dep.equals(this) && depedencies.add(dep)) {
+                    Collection<T> depdep = dep.getDependencies();
+                    if (depdep != null) {
+                        newRow.addAll(depdep);
+                    }
+                }
+            }
+            row = newRow;
+        }
+        return depedencies;
     }
 
     static <T extends DependentNode<T>> void dependentSort(List<T> dependentGraph) {
@@ -19,6 +39,7 @@ public interface DependentNode<T extends DependentNode<T>> {
     }
 
     static <T extends DependentNode<T>> void dependentSort(List<T> dependentGraph, boolean circularProhibited) {
+
         Set<T> visited = new HashSet<>();
         List<T> result = new ArrayList<>();
         Consumer<T> dfs = new Consumer<T>() {
@@ -47,6 +68,7 @@ public interface DependentNode<T extends DependentNode<T>> {
     }
 
     default List<T> detectCircularDependency() {
+
         Set<DependentNode<T>> visited = new HashSet<>();
         visited.add(this);
         Collection<LinkedNode<T>> row = LinkedNode.linkNodes(getDependencies(), null);
@@ -77,14 +99,20 @@ public interface DependentNode<T extends DependentNode<T>> {
 
         private final List<?> chain;
 
-        public CircularDependencyException(List<?> chain) {
-            super("Detected circular dependency through chain " +
-                         chain.stream().map(Objects::toString).collect(Collectors.joining(" -> ")));
+        public <T extends DependentNode<T>> CircularDependencyException(String message, List<? extends T> chain) {
+            super(message);
             this.chain = Collections.unmodifiableList(chain);
         }
 
-        public List<?> getChain() {
-            return chain;
+        public <T extends DependentNode<T>> CircularDependencyException(List<? extends T> chain) {
+            this("Detected circular dependency through chain " + chain.stream().map(Objects::toString)
+                                                                      .collect(Collectors.joining(" -> ")),
+                 chain);
+        }
+
+        @SuppressWarnings("unchecked")
+        public <T extends DependentNode<T>> List<T> getChain() {
+            return (List<T>) chain;
         }
     }
 }
