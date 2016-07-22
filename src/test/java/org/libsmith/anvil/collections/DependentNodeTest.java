@@ -100,6 +100,12 @@ public class DependentNodeTest {
                                  "Dependency circular chain assertion failure, must be " + circularChain);
     }
 
+    @Test(expected = NoSuchElementException.class)
+    public void missingDependencyTest() {
+        abc.addDependency(new DependentString("foreign"));
+        DependentNode.dependentSort(graph);
+    }
+
     @Test
     public void getAllDependenciesTest() throws Exception {
         abc.addDependency(def);

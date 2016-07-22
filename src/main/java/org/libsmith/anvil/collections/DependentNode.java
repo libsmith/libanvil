@@ -17,28 +17,30 @@ public interface DependentNode<T extends DependentNode<T>> {
     }
 
     default @Nonnull Collection<T> getAllDependencies() {
-        Set<T> depedencies = new LinkedHashSet<>();
+        Set<T> dependencies = new LinkedHashSet<>();
         Collection<T> row = this.getDependencies();
         while (row != null && !row.isEmpty()) {
             Collection<T> newRow = new ArrayList<>();
             for (T dep : row) {
-                if (!dep.equals(this) && depedencies.add(dep)) {
-                    Collection<T> depdep = dep.getDependencies();
-                    if (depdep != null) {
-                        newRow.addAll(depdep);
+                if (!dep.equals(this) && dependencies.add(dep)) {
+                    Collection<T> depOfDep = dep.getDependencies();
+                    if (depOfDep != null) {
+                        newRow.addAll(depOfDep);
                     }
                 }
             }
             row = newRow;
         }
-        return depedencies;
+        return dependencies;
     }
 
     static <T extends DependentNode<T>> void dependentSort(List<T> dependentGraph) {
-        dependentSort(dependentGraph, true);
+        dependentSort(dependentGraph, true, true);
     }
 
-    static <T extends DependentNode<T>> void dependentSort(List<T> dependentGraph, boolean circularProhibited) {
+    static <T extends DependentNode<T>> void dependentSort(List<T> dependentGraph,
+                                                           boolean circularProhibited,
+                                                           boolean missingProhibited) {
 
         Set<T> visited = new HashSet<>();
         List<T> result = new ArrayList<>();
@@ -64,10 +66,16 @@ public interface DependentNode<T extends DependentNode<T>> {
         dependentGraph.stream()
                       .filter(element -> !visited.contains(element))
                       .forEach(dfs);
+        if (result.retainAll(dependentGraph)) {
+            if (missingProhibited) {
+                throw new NoSuchElementException("Dependency graph has dependencies that " +
+                                                 "not contains in the original list");
+            }
+        }
         Collections.copy(dependentGraph, result);
     }
 
-    default List<T> detectCircularDependency() {
+    default @Nullable List<T> detectCircularDependency() {
 
         Set<DependentNode<T>> visited = new HashSet<>();
         visited.add(this);
