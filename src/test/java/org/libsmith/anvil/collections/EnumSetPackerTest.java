@@ -88,6 +88,17 @@ public class EnumSetPackerTest {
     }
 
     @Test
+    public void packToLongInexact() throws Exception {
+
+        assertThatThrownBy(
+                () -> EnumSetPacker.of(LongLongEnum.class).packToLong(EnumSet.allOf(LongLongEnum.class))
+        ).isInstanceOf(ArithmeticException.class);
+
+        assertThat(EnumSetPacker.of(LongLongEnum.class).packToLongInexact(EnumSet.allOf(LongLongEnum.class)))
+                .isEqualTo(-1L);
+    }
+
+    @Test
     public void packToBigIntegerTest() throws Exception {
 
         STATIC_TEST_DATA.forEach(
@@ -139,5 +150,14 @@ public class EnumSetPackerTest {
 
         assertThat(EnumSetPacker.of(IntEnum.class).unpackInexact(new BigInteger(Long.toHexString(-1L), 16)))
                 .isEqualTo(EnumSet.allOf(IntEnum.class));
+    }
+
+    @Test
+    public void getMaxWidthTest() {
+        assertThat(EnumSetPacker.of(ByteEnum.class).getMaxWidth()).isEqualTo(8);
+        assertThat(EnumSetPacker.of(ShortEnum.class).getMaxWidth()).isEqualTo(16);
+        assertThat(EnumSetPacker.of(IntEnum.class).getMaxWidth()).isEqualTo(32);
+        assertThat(EnumSetPacker.of(LongEnum.class).getMaxWidth()).isEqualTo(64);
+        assertThat(EnumSetPacker.of(LongLongEnum.class).getMaxWidth()).isEqualTo(128);
     }
 }

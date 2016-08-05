@@ -1,6 +1,7 @@
 package org.libsmith.anvil.collections;
 
 
+import javax.annotation.Nonnull;
 import java.math.BigInteger;
 import java.util.EnumSet;
 import java.util.Set;
@@ -14,44 +15,54 @@ public class EnumSetPacker<T extends Enum<T>> {
     private final Class<T> enumType;
     private final T[] universe;
 
-    protected EnumSetPacker(Class<T> enumType) {
+    protected EnumSetPacker(@Nonnull Class<T> enumType) {
         this.enumType = enumType;
         this.universe = enumType.getEnumConstants();
     }
 
-    public static <T extends Enum<T>> EnumSetPacker<T> of(Class<T> enumType) {
+    public static <T extends Enum<T>> EnumSetPacker<T> of(@Nonnull Class<T> enumType) {
         return new EnumSetPacker<>(enumType);
     }
 
-    public byte packToByte(Set<T> enumSet) {
-        return (byte) packToPrimitive(enumSet, 7);
+    public int getMaxWidth() {
+        return universe.length;
     }
 
-    public short packToShort(Set<T> enumSet) {
-        return (short) packToPrimitive(enumSet, 15);
+    public byte packToByte(@Nonnull Set<T> enumSet) {
+        return (byte) packToPrimitive(enumSet, 8);
     }
 
-    public int packToInt(Set<T> enumSet) {
-        return (int) packToPrimitive(enumSet, 31);
+    public short packToShort(@Nonnull Set<T> enumSet) {
+        return (short) packToPrimitive(enumSet, 16);
     }
 
-    public long packToLong(Set<T> enumSet) {
-        return packToPrimitive(enumSet, 63);
+    public int packToInt(@Nonnull Set<T> enumSet) {
+        return (int) packToPrimitive(enumSet, 32);
     }
 
-    protected long packToPrimitive(Set<T> enumSet, int maxOrdinal) {
+    public long packToLong(@Nonnull Set<T> enumSet) {
+        return packToPrimitive(enumSet, 64);
+    }
+
+    public long packToLongInexact(@Nonnull Set<T> enumSet) {
+        return packToPrimitive(enumSet, Integer.MAX_VALUE);
+    }
+
+    protected long packToPrimitive(@Nonnull Set<T> enumSet, int maxOrdinal) {
         long packed = 0;
         for (T val : enumSet) {
             long ordinal = val.ordinal();
-            if (ordinal > maxOrdinal) {
+            if (ordinal >= maxOrdinal) {
                 throw new ArithmeticException("Ordinal of " + val + " > " + maxOrdinal);
             }
-            packed |= 1L << ordinal;
+            if (ordinal < 64) {
+                packed |= 1L << ordinal;
+            }
         }
         return packed;
     }
 
-    public BigInteger packToBigInteger(Set<T> enumSet) {
+    public @Nonnull BigInteger packToBigInteger(@Nonnull Set<T> enumSet) {
         BigInteger packed = BigInteger.ZERO;
         for (T val : enumSet) {
             packed = packed.or(BigInteger.ONE.shiftLeft(val.ordinal()));
@@ -59,15 +70,15 @@ public class EnumSetPacker<T extends Enum<T>> {
         return packed;
     }
 
-    public EnumSet<T> unpack(long bitSet) {
+    public @Nonnull EnumSet<T> unpack(long bitSet) {
         return unpack(bitSet, false);
     }
 
-    public EnumSet<T> unpackInexact(long bitSet) {
+    public @Nonnull EnumSet<T> unpackInexact(long bitSet) {
         return unpack(bitSet, true);
     }
 
-    private EnumSet<T> unpack(long bitSet, boolean inexact) {
+    private @Nonnull EnumSet<T> unpack(long bitSet, boolean inexact) {
         EnumSet<T> set = EnumSet.noneOf(enumType);
         for (int ordinal = 0; bitSet != 0; bitSet = bitSet >>> 1, ordinal++) {
             if ((bitSet & 1) != 0) {
@@ -77,15 +88,15 @@ public class EnumSetPacker<T extends Enum<T>> {
         return set;
     }
 
-    public EnumSet<T> unpack(BigInteger bitSet) {
+    public @Nonnull EnumSet<T> unpack(@Nonnull BigInteger bitSet) {
         return unpack(bitSet, false);
     }
 
-    public EnumSet<T> unpackInexact(BigInteger bitSet) {
+    public @Nonnull EnumSet<T> unpackInexact(@Nonnull BigInteger bitSet) {
         return unpack(bitSet, true);
     }
 
-    private EnumSet<T> unpack(BigInteger bitSet, boolean inexact) {
+    private @Nonnull EnumSet<T> unpack(@Nonnull BigInteger bitSet, boolean inexact) {
         EnumSet<T> set = EnumSet.noneOf(enumType);
         for (int ordinal = 0, count = bitSet.bitLength(); ordinal < count; ordinal++) {
             if (bitSet.testBit(ordinal)) {
@@ -95,7 +106,7 @@ public class EnumSetPacker<T extends Enum<T>> {
         return set;
     }
 
-    private void add(EnumSet<T> enumSet, int ordinal, boolean inexact) {
+    private void add(@Nonnull EnumSet<T> enumSet, int ordinal, boolean inexact) {
         if (ordinal >= universe.length) {
             if (!inexact) {
                 throw new IllegalArgumentException("No value at ordinal " + ordinal + " for enum " +
