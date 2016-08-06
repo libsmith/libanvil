@@ -16,6 +16,7 @@ import static org.libsmith.anvil.reflection.ReflectionUtils.uncheckedClassCast;
  * @created 20.03.16 23:14
  */
 public class ClassReflection<T> {
+
     private final Class<T> type;
     private volatile Set<Class<? super T>> hierarchy;
     private volatile Set<Method> allMethods;
@@ -47,8 +48,7 @@ public class ClassReflection<T> {
     public static <T> ClassReflection<T> ofInstance(@Nonnull T instance) {
         return new ClassReflection<>((Class) instance.getClass());
     }
-
-    public Method getMethod(String name, Class<?> ... parameters) {
+    public Method getMethodExact(String name, Class<?> ... parameters) {
         try {
             return type.getMethod(name, parameters);
         }
@@ -57,7 +57,16 @@ public class ClassReflection<T> {
         }
     }
 
-    public Method getLocalMethod(String name, Class<?> ... parameters) {
+    public Optional<Method> getMethod(String name, Class<?> ... parameters) {
+        try {
+            return Optional.of(type.getMethod(name, parameters));
+        }
+        catch (NoSuchMethodException ex) {
+            return Optional.empty();
+        }
+    }
+
+    public Method getLocalMethodExact(String name, Class<?> ... parameters) {
         try {
             return type.getDeclaredMethod(name, parameters);
         }
@@ -66,7 +75,16 @@ public class ClassReflection<T> {
         }
     }
 
-    public Field getField(String name) {
+    public Optional<Method> getLocalMethod(String name, Class<?> ... parameters) {
+        try {
+            return Optional.of(type.getDeclaredMethod(name, parameters));
+        }
+        catch (NoSuchMethodException ex) {
+            return Optional.empty();
+        }
+    }
+
+    public Field getFieldExact(String name) {
         try {
             return type.getField(name);
         }
@@ -75,7 +93,16 @@ public class ClassReflection<T> {
         }
     }
 
-    public Field getLocalField(String name) {
+    public Optional<Field> getField(String name) {
+        try {
+            return Optional.of(type.getField(name));
+        }
+        catch (NoSuchFieldException ex) {
+            return Optional.empty();
+        }
+    }
+
+    public Field getLocalFieldExact(String name) {
         try {
             return type.getDeclaredField(name);
         }
@@ -84,12 +111,20 @@ public class ClassReflection<T> {
         }
     }
 
+    public Optional<Field> getLocalField(String name) {
+        try {
+            return Optional.of(type.getDeclaredField(name));
+        }
+        catch (NoSuchFieldException ex) {
+            return Optional.empty();
+        }
+    }
+
     public Set<Method> getAllMethods() {
         Set<Method> allMethods = this.allMethods;
         if (allMethods == null) {
             Set<Method> collection = new HashSet<>();
-            getFullHierarchy().stream()
-                              .forEach(t -> Stream.of(t.getDeclaredMethods())
+            getFullHierarchy().forEach(t -> Stream.of(t.getDeclaredMethods())
                                                   .filter(USER_METHODS_FILTER)
                                                   .collect(Collectors.toCollection(() -> collection)));
             this.allMethods = allMethods = Collections.unmodifiableSet(collection);
@@ -120,8 +155,7 @@ public class ClassReflection<T> {
         Set<Field> allFields = this.allFields;
         if (allFields == null) {
             Set<Field> collection = new HashSet<>();
-            getFullHierarchy().stream()
-                              .forEach(t -> Stream.of(t.getDeclaredFields())
+            getFullHierarchy().forEach(t -> Stream.of(t.getDeclaredFields())
                                                   .filter(USER_FIELDS_FILTER)
                                                   .collect(Collectors.toCollection(() -> collection)));
             this.allFields = allFields = Collections.unmodifiableSet(collection);
