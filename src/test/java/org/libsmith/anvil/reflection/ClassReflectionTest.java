@@ -2,6 +2,7 @@ package org.libsmith.anvil.reflection;
 
 import org.junit.Test;
 import org.libsmith.anvil.AbstractTest;
+import org.libsmith.anvil.reflection.ReflectiveOperationRuntimeException.NoSuchMemberRuntimeException;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -21,20 +22,20 @@ public class ClassReflectionTest extends AbstractTest {
     public void instantiationTest() {
         assertEquals(
                 Subject.class,
-                ClassReflection.of(Subject.class).getReflectionSubject());
+                ClassReflection.of(Subject.class).getReflectionSubjectClass());
 
         assertEquals(
                 Subject.class,
-                ClassReflection.ofInstance(new Subject()).getReflectionSubject());
+                ClassReflection.ofInstance(new Subject()).getReflectionSubjectClass());
 
         assertEquals(
                 ParentSubject.class,
                 ClassReflection.ofDeclaringClass(ClassReflection.of(Subject.class).getFieldExact("PARENT_PUBLIC_FIELD"))
-                               .getReflectionSubject());
+                               .getReflectionSubjectClass());
         assertEquals(
                 ParentSubject.class,
                 ClassReflection.ofDeclaringClass(ClassReflection.of(Subject.class).getMethodExact("parentPublicMethod"))
-                               .getReflectionSubject());
+                               .getReflectionSubjectClass());
     }
 
     @Test
@@ -115,11 +116,11 @@ public class ClassReflectionTest extends AbstractTest {
         assertThat(subjectReflection.getLocalMethod("parentPublicMethod").orElse(null)).isNull();
 
         assertThatThrownBy(() -> subjectReflection.getMethodExact("privateMethod"))
-                .isInstanceOf(ReflectiveOperationRuntimeException.class)
+                .isInstanceOf(NoSuchMemberRuntimeException.class)
                 .hasCauseInstanceOf(NoSuchMethodException.class);
 
         assertThatThrownBy(() -> subjectReflection.getLocalMethodExact("parentPublicMethod"))
-                .isInstanceOf(ReflectiveOperationRuntimeException.class)
+                .isInstanceOf(NoSuchMemberRuntimeException.class)
                 .hasCauseInstanceOf(NoSuchMethodException.class);
     }
 
@@ -141,12 +142,35 @@ public class ClassReflectionTest extends AbstractTest {
         assertThat(subjectReflection.getLocalField("PARENT_PUBLIC_FIELD").orElse(null)).isNull();
 
         assertThatThrownBy(() -> subjectReflection.getFieldExact("PRIVATE_FIELD"))
-                .isInstanceOf(ReflectiveOperationRuntimeException.class)
+                .isInstanceOf(NoSuchMemberRuntimeException.class)
                 .hasCauseInstanceOf(NoSuchFieldException.class);
 
         assertThatThrownBy(() -> subjectReflection.getLocalFieldExact("PARENT_PUBLIC_FIELD"))
-                .isInstanceOf(ReflectiveOperationRuntimeException.class)
+                .isInstanceOf(NoSuchMemberRuntimeException.class)
                 .hasCauseInstanceOf(NoSuchFieldException.class);
+    }
+
+    @Test
+    public void getMembersWithModifiers() {
+        ClassReflection<Subject> reflection = ClassReflection.of(Subject.class);
+
+        assertThat(reflection.getMethod("publicStaticMethod")).isPresent();
+        assertThat(reflection.getMethod("public static publicStaticMethod")).isPresent();
+
+        assertThat(reflection.getMethod("public static final publicStaticMethod")).isNotPresent();
+        assertThat(reflection.getMethod("private publicStaticMethod")).isNotPresent();
+
+        assertThat(reflection.getField("PUBLIC_FIELD")).isPresent();
+        assertThat(reflection.getField("public static PUBLIC_STATIC_FIELD")).isPresent();
+
+        assertThat(reflection.getField("private PUBLIC_FIELD")).isNotPresent();
+        assertThat(reflection.getField("volatile PUBLIC_STATIC_FIELD")).isNotPresent();
+
+        assertThatThrownBy(() -> reflection.getMethodExact("private publicStaticMethod"))
+                .isInstanceOf(NoSuchMemberRuntimeException.class);
+
+        assertThatThrownBy(() -> reflection.getFieldExact("private PUBLIC_FIELD"))
+                .isInstanceOf(NoSuchMemberRuntimeException.class);
     }
 
     @Test

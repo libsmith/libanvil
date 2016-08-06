@@ -1,9 +1,11 @@
 package org.libsmith.anvil.reflection;
 
+import org.libsmith.anvil.reflection.ReflectiveOperationRuntimeException.NoSuchMemberRuntimeException;
+
 import javax.annotation.Nonnull;
 import java.lang.reflect.Field;
+import java.lang.reflect.Member;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -18,6 +20,7 @@ import static org.libsmith.anvil.reflection.ReflectionUtils.uncheckedClassCast;
 public class ClassReflection<T> {
 
     private final Class<T> type;
+
     private volatile Set<Class<? super T>> hierarchy;
     private volatile Set<Method> allMethods;
     private volatile Set<Field> allFields;
@@ -28,7 +31,7 @@ public class ClassReflection<T> {
         this.type = type;
     }
 
-    public Class<T> getReflectionSubject() {
+    public Class<T> getReflectionSubjectClass() {
         return type;
     }
 
@@ -48,74 +51,55 @@ public class ClassReflection<T> {
     public static <T> ClassReflection<T> ofInstance(@Nonnull T instance) {
         return new ClassReflection<>((Class) instance.getClass());
     }
-    public Method getMethodExact(String name, Class<?> ... parameters) {
-        try {
-            return type.getMethod(name, parameters);
-        }
-        catch (NoSuchMethodException ex) {
-            throw new ReflectiveOperationRuntimeException(ex);
-        }
+
+    public Method getMethodExact(String declaration, Class<?> ... parameters) {
+        return getMember(declaration, (name) -> type.getMethod(name, parameters));
     }
 
-    public Optional<Method> getMethod(String name, Class<?> ... parameters) {
+    public Optional<Method> getMethod(String declaration, Class<?> ... parameters) {
         try {
-            return Optional.of(type.getMethod(name, parameters));
+            return Optional.of(getMember(declaration, name -> type.getMethod(name, parameters)));
         }
-        catch (NoSuchMethodException ex) {
+        catch (NoSuchMemberRuntimeException ex) {
             return Optional.empty();
         }
     }
 
-    public Method getLocalMethodExact(String name, Class<?> ... parameters) {
-        try {
-            return type.getDeclaredMethod(name, parameters);
-        }
-        catch (NoSuchMethodException ex) {
-            throw new ReflectiveOperationRuntimeException(ex);
-        }
+    public Method getLocalMethodExact(String declaration, Class<?> ... parameters) {
+        return getMember(declaration, name -> type.getDeclaredMethod(name, parameters));
     }
 
-    public Optional<Method> getLocalMethod(String name, Class<?> ... parameters) {
+    public Optional<Method> getLocalMethod(String declaration, Class<?> ... parameters) {
         try {
-            return Optional.of(type.getDeclaredMethod(name, parameters));
+            return Optional.of(getMember(declaration, name -> type.getDeclaredMethod(name, parameters)));
         }
-        catch (NoSuchMethodException ex) {
+        catch (NoSuchMemberRuntimeException ex) {
             return Optional.empty();
         }
     }
 
-    public Field getFieldExact(String name) {
-        try {
-            return type.getField(name);
-        }
-        catch (NoSuchFieldException ex) {
-            throw new ReflectiveOperationRuntimeException(ex);
-        }
+    public Field getFieldExact(String declaration) {
+        return getMember(declaration, type::getField);
     }
 
-    public Optional<Field> getField(String name) {
+    public Optional<Field> getField(String declaration) {
         try {
-            return Optional.of(type.getField(name));
+            return Optional.of(getMember(declaration, type::getField));
         }
-        catch (NoSuchFieldException ex) {
+        catch (NoSuchMemberRuntimeException ex) {
             return Optional.empty();
         }
     }
 
-    public Field getLocalFieldExact(String name) {
-        try {
-            return type.getDeclaredField(name);
-        }
-        catch (NoSuchFieldException ex) {
-            throw new ReflectiveOperationRuntimeException(ex);
-        }
+    public Field getLocalFieldExact(String declaration) {
+        return getMember(declaration, type::getDeclaredField);
     }
 
-    public Optional<Field> getLocalField(String name) {
+    public Optional<Field> getLocalField(String declaration) {
         try {
-            return Optional.of(type.getDeclaredField(name));
+            return Optional.of(getMember(declaration, type::getDeclaredField));
         }
-        catch (NoSuchFieldException ex) {
+        catch (NoSuchMemberRuntimeException ex) {
             return Optional.empty();
         }
     }
@@ -207,6 +191,24 @@ public class ClassReflection<T> {
         return hierarchy;
     }
 
+    private static <T extends Member> T getMember(String declaration, ReflectiveFunction<String, T> getter) {
+        declaration = declaration.trim();
+        Set<Modifier> modifierSet = Collections.emptySet();
+        int lastDelimiter = declaration.lastIndexOf(" ");
+        if (lastDelimiter != -1) {
+            modifierSet = Modifier.parse(declaration.substring(0, lastDelimiter));
+            declaration = declaration.substring(lastDelimiter + 1);
+        }
+        T member = getter.apply(declaration);
+        EnumSet<Modifier> memberModifiers = Modifier.unpack(member.getModifiers());
+        if (!memberModifiers.containsAll(modifierSet)) {
+            modifierSet.removeAll(memberModifiers);
+            throw new NoSuchMemberRuntimeException("Found member does not contain modifier(s): " + modifierSet +
+                                                   ", member is " + member);
+        }
+        return member;
+    }
+
     @Override
     public String toString() {
         return getClass().getSimpleName() + " of " + type.getName();
@@ -219,8 +221,8 @@ public class ClassReflection<T> {
                                                                         && !method.isBridge()
                                                                         &&  method.getDeclaringClass() != Object.class;
 
-    public static final Predicate<Method> PUBLIC_METHODS = method -> Modifier.isPublic(method.getModifiers());
+    public static final Predicate<Method> PUBLIC_METHODS = method -> Modifier.PUBLIC.presentIn(method.getModifiers());
 
-    public static final Predicate<Field> COPYABLE_FIELDS = field -> !Modifier.isStatic(field.getModifiers())
-                                                                 && !Modifier.isFinal(field.getModifiers());
+    public static final Predicate<Field> COPYABLE_FIELDS = field -> !Modifier.STATIC.presentIn(field.getModifiers())
+                                                                 && !Modifier.FINAL.presentIn(field.getModifiers());
 }
