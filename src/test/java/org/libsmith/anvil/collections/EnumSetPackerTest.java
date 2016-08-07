@@ -160,4 +160,33 @@ public class EnumSetPackerTest {
         assertThat(EnumSetPacker.of(LongEnum.class).getMaxWidth()).isEqualTo(64);
         assertThat(EnumSetPacker.of(LongLongEnum.class).getMaxWidth()).isEqualTo(128);
     }
+
+    @Test
+    public void ensure() {
+
+        @SuppressWarnings("serial")
+        class BigBigInteger extends BigInteger { public BigBigInteger(String val) { super(val); } }
+
+        EnumSetPacker.of(ByteEnum.class).ensureThatWidthSatisfySizeOf(Byte.class, byte.class, short.class);
+        EnumSetPacker.of(ShortEnum.class).ensureThatWidthSatisfySizeOf(Short.class, short.class, int.class);
+        EnumSetPacker.of(IntEnum.class).ensureThatWidthSatisfySizeOf(Integer.class, int.class, long.class);
+        EnumSetPacker.of(LongEnum.class).ensureThatWidthSatisfySizeOf(Long.class, long.class, BigInteger.class);
+        EnumSetPacker.of(LongLongEnum.class).ensureThatWidthSatisfySizeOf(BigInteger.class, BigBigInteger.class);
+
+        assertThatThrownBy(
+                () -> EnumSetPacker.of(ShortEnum.class).ensureThatWidthSatisfySizeOf(byte.class)
+        ).hasMessageContaining("byte");
+
+        assertThatThrownBy(
+                () -> EnumSetPacker.of(IntEnum.class).ensureThatWidthSatisfySizeOf(short.class)
+        ).hasMessageContaining("short");
+
+        assertThatThrownBy(
+                () -> EnumSetPacker.of(LongEnum.class).ensureThatWidthSatisfySizeOf(int.class)
+        ).hasMessageContaining("int");
+
+        assertThatThrownBy(
+                () -> EnumSetPacker.of(LongLongEnum.class).ensureThatWidthSatisfySizeOf(long.class)
+        ).hasMessageContaining("long");
+    }
 }
