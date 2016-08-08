@@ -1,10 +1,8 @@
 package org.libsmith.anvil.reflection;
 
-import org.libsmith.anvil.reflection.ReflectiveOperationRuntimeException.NoSuchMemberRuntimeException;
-
 import javax.annotation.Nonnull;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.function.Predicate;
@@ -17,21 +15,22 @@ import static org.libsmith.anvil.reflection.ReflectionUtils.uncheckedClassCast;
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
  * @created 20.03.16 23:14
  */
-public class ClassReflection<T> {
+public class ClassReflection<T> implements ReflectionSubjectAware<Class<T>>  {
 
     private final Class<T> type;
 
-    private volatile Set<Class<? super T>> hierarchy;
-    private volatile Set<Method> allMethods;
-    private volatile Set<Field> allFields;
-    private volatile Set<Method> localMethods;
-    private volatile Set<Field> localFields;
+    private volatile Set<Class<? super T>> hierarchyCached;
+    private volatile Set<Method> allMethodsCached;
+    private volatile Set<Field> allFieldsCached;
+    private volatile Set<Method> localMethodsCached;
+    private volatile Set<Field> localFieldsCached;
 
     protected ClassReflection(@Nonnull Class<T> type) {
         this.type = type;
     }
 
-    public Class<T> getReflectionSubjectClass() {
+    @Override
+    public @Nonnull Class<T> getReflectionSubject() {
         return type;
     }
 
@@ -52,122 +51,139 @@ public class ClassReflection<T> {
         return new ClassReflection<>((Class) instance.getClass());
     }
 
-    public Method getMethodExact(String declaration, Class<?> ... parameters) {
-        return getMember(declaration, (name) -> type.getMethod(name, parameters));
+    public MethodInvoker.Resolver<T> method(String name) {
+        return new MethodInvoker.Resolver<>(name, type::getMethod);
     }
 
-    public Optional<Method> getMethod(String declaration, Class<?> ... parameters) {
-        try {
-            return Optional.of(getMember(declaration, name -> type.getMethod(name, parameters)));
-        }
-        catch (NoSuchMemberRuntimeException ex) {
-            return Optional.empty();
-        }
+    public @Nonnull Optional<Method> getMethodOp(@Nonnull String name, Class<?> ... parameters) {
+        return method(name).paramsUncheckedOp(parameters).map(MethodInvoker::getReflectionSubject);
     }
 
-    public Method getLocalMethodExact(String declaration, Class<?> ... parameters) {
-        return getMember(declaration, name -> type.getDeclaredMethod(name, parameters));
+    public @Nonnull Method getMethod(@Nonnull String name, Class<?> ... parameters) {
+        return method(name).paramsUnchecked(parameters).getReflectionSubject();
     }
 
-    public Optional<Method> getLocalMethod(String declaration, Class<?> ... parameters) {
-        try {
-            return Optional.of(getMember(declaration, name -> type.getDeclaredMethod(name, parameters)));
-        }
-        catch (NoSuchMemberRuntimeException ex) {
-            return Optional.empty();
-        }
+    public MethodInvoker.Resolver<T> localMethod(String name) {
+        return new MethodInvoker.Resolver<>(name, type::getDeclaredMethod);
     }
 
-    public Field getFieldExact(String declaration) {
-        return getMember(declaration, type::getField);
+    public @Nonnull Method getLocalMethod(@Nonnull String name, Class<?> ... parameters) {
+        return localMethod(name).paramsUnchecked(parameters).getReflectionSubject();
     }
 
-    public Optional<Field> getField(String declaration) {
-        try {
-            return Optional.of(getMember(declaration, type::getField));
-        }
-        catch (NoSuchMemberRuntimeException ex) {
-            return Optional.empty();
-        }
+    public @Nonnull Optional<Method> getLocalMethodOp(@Nonnull String name, Class<?> ... parameters) {
+        return localMethod(name).paramsUncheckedOp(parameters).map(MethodInvoker::getReflectionSubject);
     }
 
-    public Field getLocalFieldExact(String declaration) {
-        return getMember(declaration, type::getDeclaredField);
+    public Optional<? extends FieldAccessor.Regular<T, ?>> fieldOp(String name) {
+        return getFieldOp(name).map(FieldAccessor.Regular::new);
     }
 
-    public Optional<Field> getLocalField(String declaration) {
-        try {
-            return Optional.of(getMember(declaration, type::getDeclaredField));
-        }
-        catch (NoSuchMemberRuntimeException ex) {
-            return Optional.empty();
-        }
+    public FieldAccessor.Regular<T, ?> field(String name) {
+        return new FieldAccessor.Regular<>(getField(name));
     }
 
-    public Set<Method> getAllMethods() {
-        Set<Method> allMethods = this.allMethods;
+    public Optional<? extends FieldAccessor.Regular<T, ?>> localFieldOp(String name) {
+        return getLocalFieldOp(name).map(FieldAccessor.Regular::new);
+    }
+
+    public FieldAccessor.Regular<T, ?> localField(String name) {
+        return new FieldAccessor.Regular<>(getLocalField(name));
+    }
+
+    public @Nonnull Field getField(@Nonnull String name) {
+        return ((ReflectiveFunction<String, Field>) type::getField).apply(name);
+    }
+
+    public @Nonnull Optional<Field> getFieldOp(@Nonnull String name) {
+        return ((ReflectiveFunction<String, Field>) type::getField).applyOp(name);
+    }
+
+    public @Nonnull Field getLocalField(@Nonnull String name) {
+        return ((ReflectiveFunction<String, Field>) type::getDeclaredField).apply(name);
+    }
+
+    public @Nonnull Optional<Field> getLocalFieldOp(@Nonnull String name) {
+        return ((ReflectiveFunction<String, Field>) type::getDeclaredField).applyOp(name);
+    }
+
+    public @Nonnull ConstructorInvoker.Resolver<T> constructor() {
+        return new ConstructorInvoker.Resolver<>(type::getDeclaredConstructor);
+    }
+
+    public @Nonnull Constructor<T> getConstructor(Class<?> ... params) {
+        return constructor().paramsUnchecked(params).getConstructor();
+    }
+
+    public @Nonnull Optional<Constructor<T>> getConstructorOp(Class<?> ... params) {
+        return constructor().paramsUncheckedOp(params).map(ConstructorInvoker::getConstructor);
+    }
+
+
+    public @Nonnull Set<Method> getAllMethods() {
+        Set<Method> allMethods = this.allMethodsCached;
         if (allMethods == null) {
             Set<Method> collection = new HashSet<>();
             getFullHierarchy().forEach(t -> Stream.of(t.getDeclaredMethods())
                                                   .filter(USER_METHODS_FILTER)
                                                   .collect(Collectors.toCollection(() -> collection)));
-            this.allMethods = allMethods = Collections.unmodifiableSet(collection);
+            this.allMethodsCached = allMethods = Collections.unmodifiableSet(collection);
         }
         return allMethods;
     }
 
-    public Stream<Method> allMethods() {
+    public @Nonnull Stream<Method> allMethods() {
         return getAllMethods().stream();
     }
 
-    public Set<Method> getLocalMethods() {
-        Set<Method> localMethods = this.localMethods;
+    public @Nonnull Set<Method> getLocalMethods() {
+        Set<Method> localMethods = this.localMethodsCached;
         if (localMethods == null) {
             localMethods = Stream.of(type.getDeclaredMethods())
                                  .filter(USER_METHODS_FILTER)
                                  .collect(Collectors.toSet());
-            this.localMethods = localMethods = Collections.unmodifiableSet(localMethods);
+            this.localMethodsCached = localMethods = Collections.unmodifiableSet(localMethods);
         }
         return localMethods;
     }
 
-    public Stream<Method> localMethods() {
+    public @Nonnull Stream<Method> localMethods() {
         return getLocalMethods().stream();
     }
 
-    public Set<Field> getAllFields() {
-        Set<Field> allFields = this.allFields;
+    public @Nonnull Set<Field> getAllFields() {
+        Set<Field> allFields = this.allFieldsCached;
         if (allFields == null) {
             Set<Field> collection = new HashSet<>();
             getFullHierarchy().forEach(t -> Stream.of(t.getDeclaredFields())
                                                   .filter(USER_FIELDS_FILTER)
                                                   .collect(Collectors.toCollection(() -> collection)));
-            this.allFields = allFields = Collections.unmodifiableSet(collection);
+            this.allFieldsCached = allFields = Collections.unmodifiableSet(collection);
         }
         return allFields;
     }
 
-    public Stream<Field> allFields() {
+    public @Nonnull Stream<Field> allFields() {
         return getAllFields().stream();
     }
 
-    public Set<Field> getLocalFields() {
-        Set<Field> localFields = this.localFields;
+    public @Nonnull Set<Field> getLocalFields() {
+        Set<Field> localFields = this.localFieldsCached;
         if (localFields == null) {
             localFields = Stream.of(type.getDeclaredFields())
                                 .filter(USER_FIELDS_FILTER)
                                 .collect(Collectors.toSet());
-            this.localFields = localFields = Collections.unmodifiableSet(localFields);
+            this.localFieldsCached = localFields = Collections.unmodifiableSet(localFields);
         }
         return localFields;
     }
 
-    public Stream<Field> localFields() {
+    public @Nonnull Stream<Field> localFields() {
         return getLocalFields().stream();
     }
 
-    public Set<Class<? super T>> getFullHierarchy() {
-        Set<Class<? super T>> hierarchy = this.hierarchy;
+    public @Nonnull Set<Class<? super T>> getFullHierarchy() {
+        Set<Class<? super T>> hierarchy = this.hierarchyCached;
         if (hierarchy == null) {
             hierarchy = new HashSet<>();
             List<Class<?>> row = new ArrayList<>();
@@ -186,31 +202,30 @@ public class ClassReflection<T> {
                 }
                 row = newRow;
             }
-            this.hierarchy = Collections.unmodifiableSet(hierarchy);
+            this.hierarchyCached = Collections.unmodifiableSet(hierarchy);
         }
         return hierarchy;
     }
 
-    private static <T extends Member> T getMember(String declaration, ReflectiveFunction<String, T> getter) {
-        declaration = declaration.trim();
-        Set<Modifier> modifierSet = Collections.emptySet();
-        int lastDelimiter = declaration.lastIndexOf(" ");
-        if (lastDelimiter != -1) {
-            modifierSet = Modifier.parse(declaration.substring(0, lastDelimiter));
-            declaration = declaration.substring(lastDelimiter + 1);
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
         }
-        T member = getter.apply(declaration);
-        EnumSet<Modifier> memberModifiers = Modifier.unpack(member.getModifiers());
-        if (!memberModifiers.containsAll(modifierSet)) {
-            modifierSet.removeAll(memberModifiers);
-            throw new NoSuchMemberRuntimeException("Found member does not contain modifier(s): " + modifierSet +
-                                                   ", member is " + member);
+        if (o == null || getClass() != o.getClass()) {
+            return false;
         }
-        return member;
+        ClassReflection<?> that = (ClassReflection<?>) o;
+        return Objects.equals(type, that.type);
     }
 
     @Override
-    public String toString() {
+    public int hashCode() {
+        return Objects.hash(type);
+    }
+
+    @Override
+    public @Nonnull String toString() {
         return getClass().getSimpleName() + " of " + type.getName();
     }
 
@@ -221,8 +236,8 @@ public class ClassReflection<T> {
                                                                         && !method.isBridge()
                                                                         &&  method.getDeclaringClass() != Object.class;
 
-    public static final Predicate<Method> PUBLIC_METHODS = method -> Modifier.PUBLIC.presentIn(method.getModifiers());
+    public static final Predicate<Method> PUBLIC_METHODS = Modifier.PUBLIC::presentIn;
 
-    public static final Predicate<Field> COPYABLE_FIELDS = field -> !Modifier.STATIC.presentIn(field.getModifiers())
-                                                                 && !Modifier.FINAL.presentIn(field.getModifiers());
+    public static final Predicate<Field> COPYABLE_FIELDS = field -> !Modifier.STATIC.presentIn(field)
+                                                                 && !Modifier.FINAL.presentIn(field);
 }

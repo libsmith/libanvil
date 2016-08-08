@@ -3,6 +3,7 @@ package org.libsmith.anvil.reflection;
 import com.sun.istack.internal.NotNull;
 import org.libsmith.anvil.collections.EnumSetPacker;
 
+import java.lang.reflect.Member;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
@@ -11,7 +12,8 @@ import java.util.Set;
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
  * @created 06.08.16 17:25
  */
-enum Modifier {
+@SuppressWarnings("unused")
+public enum Modifier {
 
     INTERFACE(java.lang.reflect.Modifier.INTERFACE),
 
@@ -67,12 +69,28 @@ enum Modifier {
         return (packed & getMask()) != 0;
     }
 
+    public boolean presentIn(Member member) {
+        return presentIn(member.getModifiers());
+    }
+
+    public boolean notPresentIn(int packed) {
+        return (packed & getMask()) == 0;
+    }
+
+    public boolean notPresentIn(Member member) {
+        return notPresentIn(member.getModifiers());
+    }
+
     public static @NotNull EnumSet<Modifier> unpack(int packed) {
         return PACKER.unpack(packed);
     }
 
-    public static int pack(@NotNull Set<Modifier> pack) {
-        return PACKER.packToInt(pack);
+    public static int pack(@NotNull Modifier ... set) {
+        return PACKER.packToInt(set);
+    }
+
+    public static int pack(@NotNull Set<Modifier> set) {
+        return PACKER.packToInt(set);
     }
 
     public static EnumSet<Modifier> parse(String modifiers) {
