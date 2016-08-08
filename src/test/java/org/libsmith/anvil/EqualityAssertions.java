@@ -1,7 +1,5 @@
 package org.libsmith.anvil;
 
-import org.junit.Assert;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -26,7 +24,7 @@ public class EqualityAssertions {
     }
 
     public static EqualityAssertions assertThat(Object object) {
-        Assert.assertNotNull(object);
+        assertNotNull(object);
         return new EqualityAssertions(Collections.singletonList(object), true, true, 3);
     }
 
@@ -39,7 +37,7 @@ public class EqualityAssertions {
     }
 
     public EqualityAssertions and(Object object) {
-        Assert.assertNotNull(object);
+        assertNotNull(object);
         List<Object> equalitySubjects = new ArrayList<>(this.equalitySubjects);
         equalitySubjects.add(object);
         return new EqualityAssertions(equalitySubjects, hashCodeAssertions, reverseEquality, repeatCount);
@@ -63,7 +61,7 @@ public class EqualityAssertions {
 
     private EqualityAssertions toEqualsOrNotToEqualsTo(Object object, boolean equalAssertion) {
 
-        Assert.assertNotNull(object);
+        assertNotNull(object);
         if (equalitySubjects.size() < 1) {
             throw new AssertionError("Insufficient data for equality assertion");
         }
@@ -78,15 +76,15 @@ public class EqualityAssertions {
                 Object other = equalitySubjects.get(i);
                 assertThatSubjectSatisfyGeneralContract(other);
                 if (equalAssertion) {
-                    Assert.assertEquals(message, other, object);
+                    assertEquals(message, other, object);
                     if (reverseEquality) {
-                        Assert.assertEquals(message, object, other);
+                        assertEquals(message, object, other);
                     }
                 }
                 else {
-                    Assert.assertNotEquals(message, other, object);
+                    assertNotEquals(message, other, object);
                     if (reverseEquality) {
-                        Assert.assertNotEquals(message, object, other);
+                        assertNotEquals(message, object, other);
                     }
                 }
             }
@@ -97,7 +95,7 @@ public class EqualityAssertions {
                     String message = "Hash code of object at index " + i +
                                      " must be equal to hash code of object '" + object + "'" +
                                      (take > 0 ? ", take " + (take + 1) + " of " + repeatCount + ")" : "");
-                    Assert.assertEquals(message, referenceHashCode, other.hashCode());
+                    assertEquals(message, referenceHashCode, other.hashCode());
                 }
             }
         }
@@ -124,10 +122,10 @@ public class EqualityAssertions {
                                      "equal to object at index " + j +
                                      (take > 0 ? ", take " + (take + 1) + " of " + repeatCount + ")" : "");
                     if (equalAssertion) {
-                        Assert.assertEquals(message, a, b);
+                        assertEquals(message, a, b);
                     }
                     else {
-                        Assert.assertNotEquals(message, a, b);
+                        assertNotEquals(message, a, b);
                     }
                 }
             }
@@ -139,18 +137,38 @@ public class EqualityAssertions {
                     String message = "Hashcode of object at index " + i + "(" + other + ") must be equal to " +
                                      "hash code of reference object '" + referenceHashCode + "'" +
                                      (take > 0 ? ", take " + (take + 1) + " of " + repeatCount + ")" : "");
-                    Assert.assertEquals(message, referenceHashCode, other.hashCode());
+                    assertEquals(message, referenceHashCode, other.hashCode());
                 }
             }
         }
         return this;
     }
 
+    @SuppressWarnings({ "EqualsWithItself", "ObjectEqualsNull" })
     private void assertThatSubjectSatisfyGeneralContract(Object subject) {
-        Assert.assertEquals("Object must be equal to self", subject, subject);
-        Assert.assertNotEquals("Object must not equal to null", null, subject);
+        assertEquals("Object must be equal to self", subject, subject);
+        assertNotEquals("Object must not equal to null", null, subject);
+        assertNotEquals("Object must not equal to unknown object", new Object(), subject);
         if (hashCodeAssertions) {
-            Assert.assertEquals("Object must have same hashCode between calls", subject.hashCode(), subject.hashCode());
+            assertEquals("Object must have same hashCode between calls", subject.hashCode(), subject.hashCode());
+        }
+    }
+    
+    private static void assertNotNull(Object object) {
+        if (object == null) {
+            throw new AssertionError("Object must be not null");
+        }
+    }
+    
+    private static void assertEquals(String message, Object expected, Object actual) {
+        if (!actual.equals(expected)) {
+            throw new AssertionError(message);
+        }
+    }
+
+    private static void assertNotEquals(String message, Object expected, Object actual) {
+        if (actual.equals(expected)) {
+            throw new AssertionError(message);
         }
     }
 }
