@@ -22,8 +22,8 @@ public class EnumSetPreloadedCacheTest {
 
     @Test
     public void staticValuesTest() {
-        EnumSetPreloadCache<LongLongEnum, String> cache =
-                EnumSetPreloadCache.of(LongLongEnum.class, Object::toString);
+        EnumSetPreloadedCache<LongLongEnum, String> cache =
+                EnumSetPreloadedCache.of(LongLongEnum.class, Object::toString);
 
         assertThat(cache.get(EnumSet.of(_1, _3, _4))).isEqualTo("[_1, _3, _4]");
         assertThat(cache.get(EnumSet.of(_0, _2, _5))).isEqualTo("[_0, _2, _5]");
@@ -43,8 +43,8 @@ public class EnumSetPreloadedCacheTest {
 
         Function<Set<LongLongEnum>, String> loader = Mockito.spy(new ToStringFunction());
 
-        EnumSetPreloadCache<LongLongEnum, String> cache =
-                EnumSetPreloadCache.of(40, LongLongEnum.class, loader);
+        EnumSetPreloadedCache<LongLongEnum, String> cache =
+                EnumSetPreloadedCache.of(40, LongLongEnum.class, loader);
 
         Mockito.verify(loader, times(40)).apply(any());
 
