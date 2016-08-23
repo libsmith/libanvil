@@ -4,6 +4,7 @@ import javax.annotation.Nonnull;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -38,6 +39,19 @@ public class Strings {
         return isNotEmpty((Supplier<T>) supplier);
     }
 
+    public static <T extends CharSequence> Optional<T> ifNotEmpty(T charSequence) {
+        return isNotEmpty(charSequence) ? Optional.of(charSequence) : Optional.empty();
+    }
+
+    public static <T extends CharSequence> Optional<Supplier<T>> ifNotEmpty(Supplier<T> supplier) {
+        T value = supplier.get();
+        return isNotEmpty(value) ? Optional.of(() -> value) : Optional.empty();
+    }
+
+    public static <T extends CharSequence> Optional<Supplier<T>> ifNotEmpty(LazyCharSequence<T> supplier) {
+        return ifNotEmpty((Supplier<T>) supplier);
+    }
+
     public static boolean isBlank(CharSequence charSequence) {
         if (charSequence != null) {
             for (int p = 0, l = charSequence.length(); p < l; p++) {
@@ -69,6 +83,19 @@ public class Strings {
 
     public static <T extends CharSequence> boolean isNotBlank(LazyCharSequence<T> supplier) {
         return !isBlank((Supplier<T>) supplier);
+    }
+
+    public static <T extends CharSequence> Optional<T> ifNotBlank(T charSequence) {
+        return !isBlank(charSequence) ? Optional.of(charSequence) : Optional.empty();
+    }
+
+    public static <T extends CharSequence> Optional<Supplier<T>> ifNotBlank(Supplier<T> charSequence) {
+        T value = charSequence.get();
+        return !isBlank(value) ? Optional.of(() -> value) : Optional.empty();
+    }
+
+    public static <T extends CharSequence> Optional<Supplier<T>> ifNotBlank(LazyCharSequence<T> supplier) {
+        return ifNotBlank((Supplier<T>) supplier);
     }
 
     public static <T extends CharSequence> LazyCharSequence<T> lazy(Supplier<T> supplier) {
