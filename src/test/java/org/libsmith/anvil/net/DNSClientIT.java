@@ -148,7 +148,6 @@ public class DNSClientIT extends AbstractTest {
         assertFalse(strings.isEmpty());
     }
 
-
     @Test
     public void resolveAPTRByAddress() throws Exception {
         List<InetAddress> strings = dnsClient.resolvePTR(InetAddress.getByName("8.8.8.8"));
@@ -193,14 +192,14 @@ public class DNSClientIT extends AbstractTest {
 
     @Test
     public void nonDefaultServers() throws Exception {
-        List<InetAddress> yandexAResolve = new DNSClient(new InetSocketAddress("8.8.8.8", 53)).resolveA("ya.ru");
+        List<InetAddress> yandexAResolve = DNSClient.of(new InetSocketAddress("8.8.8.8", 53)).resolveA("ya.ru");
         assertFalse(yandexAResolve.isEmpty());
 
-        List<InetAddress> yandexAResolveMore = new DNSClient(InetAddress.getByName("8.8.4.4")).resolveA("ya.ru");
+        List<InetAddress> yandexAResolveMore = DNSClient.of(InetAddress.getByName("8.8.4.4")).resolveA("ya.ru");
         assertFalse(yandexAResolveMore.isEmpty());
 
         Assertions.assertThatThrownBy(() ->
-            new DNSClient(InetSocketAddress.createUnresolved("notexisting.dns.server.ru", 53)).resolveA("ya.ru")
+            DNSClient.of("notexisting.dns.server.ru").resolveA("ya.ru")
         )       .isInstanceOf(DNSClient.ResolvingCommunicationException.class)
                 .hasMessageContaining("notexisting.dns.server.ru");
     }

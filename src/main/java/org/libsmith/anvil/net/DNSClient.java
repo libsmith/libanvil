@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static org.libsmith.anvil.text.Strings.ifNotBlank;
+
 /**
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
  * @created 22.02.2016 17:12
@@ -29,33 +31,37 @@ public class DNSClient {
     private static final Logger LOG = Logger.getLogger(DNSClient.class.getName());
 
     private final InitialDirContext initialDirContext;
-    private final Object            serverHost;
+    private final String serverHostName;
 
-    public DNSClient(@Nonnull InetSocketAddress inetSocketAddress) {
-        this(inetSocketAddress.getHostName() + ":" + inetSocketAddress.getPort(), inetSocketAddress);
+    public static DNSClient of(@Nonnull InetSocketAddress inetSocketAddress) {
+        return new DNSClient(inetSocketAddress.getHostName() + ":" + inetSocketAddress.getPort());
     }
 
-    public DNSClient(@Nonnull InetAddress inetAddress) {
-        this(inetAddress.getHostName(), inetAddress);
+    public static DNSClient of(@Nonnull InetAddress inetAddress) {
+        return new DNSClient(inetAddress.getHostName());
     }
 
-    private DNSClient(@Nullable String serverHostString, Object serverHost) {
-        this.serverHost = serverHost;
-        try {
-            java.util.Hashtable<String, String> env = new java.util.Hashtable<>();
-            env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.dns.DnsContextFactory");
-            if (serverHost != null) {
-                env.put("java.naming.provider.url", "dns://" + serverHostString);
-            }
-            initialDirContext = new InitialDirContext(env);
-        }
-        catch (NamingException ex) {
-            throw new RuntimeException(ex);
-        }
+    public static DNSClient of(@Nonnull String serverHostName) {
+        return new DNSClient(serverHostName);
     }
 
     public static DNSClient defaultInstance() {
         return DefaultInstanceHolder.INSTANCE;
+    }
+
+    protected DNSClient(@Nullable String serverHostName) {
+        this.serverHostName = serverHostName;
+        try {
+            java.util.Hashtable<String, String> env = new java.util.Hashtable<>();
+            env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.dns.DnsContextFactory");
+            if (serverHostName != null && !serverHostName.isEmpty()) {
+                env.put("java.naming.provider.url", "dns://" + serverHostName);
+            }
+            initialDirContext = new InitialDirContext(env);
+        }
+        catch (NamingException ex) {
+            throw new ResolvingRuntimeException(null, ex);
+        }
     }
 
     public @Nonnull List<InetAddress> resolveA(@Nonnull String host) throws NameNotFoundException {
@@ -70,7 +76,7 @@ public class DNSClient {
             for (int i = 0; i < 4; i++) {
                 short tokenValue = Short.parseShort(splits[i]);
                 if (tokenValue > 255 || tokenValue < 0) {
-                    throw new RuntimeException();
+                    throw new ResolvingRuntimeException(null, null);
                 }
                 address[i] = (byte) tokenValue;
             }
@@ -78,7 +84,7 @@ public class DNSClient {
                 ret.add(InetAddress.getByAddress(host, address));
             }
             catch (UnknownHostException ex) {
-                throw new RuntimeException(ex);
+                throw new ResolvingRuntimeException(null, ex);
             }
         }
         return Collections.unmodifiableList(ret);
@@ -109,7 +115,7 @@ public class DNSClient {
                 else {
                     int tokenValue = Integer.parseInt(token, 16);
                     if (tokenValue > 0xFFFF || tokenValue < 0) {
-                        throw new RuntimeException();
+                        throw new ResolvingRuntimeException(null, null);
                     }
                     address[i] = (byte) ((tokenValue & 0xFF00) >> 8);
                     address[i + 1] = (byte) (tokenValue & 0x00FF);
@@ -120,7 +126,7 @@ public class DNSClient {
                 ret.add(InetAddress.getByAddress(host, address));
             }
             catch (UnknownHostException ex) {
-                throw new RuntimeException(ex);
+                throw new ResolvingRuntimeException(null, ex);
             }
         }
         return Collections.unmodifiableList(ret);
@@ -142,7 +148,7 @@ public class DNSClient {
             }
         }
         catch (UnknownHostException ex) {
-            throw new RuntimeException(ex);
+            throw new ResolvingRuntimeException(null, ex);
         }
         return resolved;
     }
@@ -163,7 +169,7 @@ public class DNSClient {
                 resolved.add(InetAddress.getByName(split.length == 1 ? split[0] : split[1]));
             }
             catch (UnknownHostException ex) {
-                throw new RuntimeException(ex);
+                throw new ResolvingRuntimeException(null, ex);
             }
         }
         return resolved;
@@ -234,7 +240,7 @@ public class DNSClient {
             }
         }
         catch (UnknownHostException ex) {
-            throw new RuntimeException(ex);
+            throw new ResolvingRuntimeException(null, ex);
         }
         return resolved;
     }
@@ -246,10 +252,9 @@ public class DNSClient {
     private @Nonnull List<String> resolve(@Nonnull String name, @Nonnull String[] types) throws NameNotFoundException {
         assert types.length == 1;
         String type = types[0];
-        String serverName = serverHost == null ? "default server" : serverHost.toString();
         long start = System.currentTimeMillis();
         try {
-            LOG.finest(() -> MessageFormat.format("Resolve {0} via {1}", name, serverName));
+            LOG.finest(() -> MessageFormat.format("Resolve {0} via {1}", name, getServerNameDescription()));
             Attributes attributes = initialDirContext.getAttributes(name, types);
             List<String> list = Collections.emptyList();
             if (attributes != null) {
@@ -265,38 +270,44 @@ public class DNSClient {
                 LOG.log(LogRecordBuilder.fine()
                                         .withMessage("Resolved {0} as {1} via {2}; {3}")
                                         .withParameters(type, list.isEmpty() ? "empty list" : list,
-                                                        serverName, TimePeriod.tillNowFromMillis(start)));
+                                                        getServerNameDescription(),
+                                                        TimePeriod.tillNowFromMillis(start)));
             }
 
             return list;
         }
         catch (NameNotFoundException ex) {
-            LOG.finer(() -> formatException(name, serverName, start, ex));
+            LOG.finer(() -> formatException(name, start, ex));
             throw ex;
         }
         catch (CommunicationException ex) {
-            LOG.finer(() -> formatException(name, serverName, start, ex));
+            LOG.finer(() -> formatException(name, start, ex));
             if (ex.getCause() instanceof IOException) {
                 throw new ResolvingCommunicationException(ex.getMessage(), ex.getCause());
             }
             throw new ResolvingCommunicationException(null, ex);
         }
         catch (ConfigurationException ex) {
-            LOG.finer(() -> formatException(name, serverName, start, ex));
+            LOG.finer(() -> formatException(name, start, ex));
             if (ex.getCause() instanceof UnknownHostException) {
                 throw new ResolvingCommunicationException(ex.getMessage(), ex.getCause());
             }
             throw new ResolvingRuntimeException(null, ex);
         }
         catch (NamingException ex) {
-            LOG.finer(() -> formatException(name, serverName, start, ex));
+            LOG.finer(() -> formatException(name, start, ex));
             throw new ResolvingRuntimeException(null, ex);
         }
     }
 
-    private static String formatException(String name, String serverName, long start, Throwable th) {
+    private String formatException(String name, long start, Throwable th) {
         return MessageFormat.format("Resolve {0} via {1} failed; {2}; {3}",
-                                    name, serverName, TimePeriod.tillNowFromMillis(start), th);
+                                    name, getServerNameDescription(),
+                                    TimePeriod.tillNowFromMillis(start), th);
+    }
+
+    private String getServerNameDescription() {
+        return ifNotBlank(serverHostName).orElse("default server");
     }
 
     public static class ResolvingRuntimeException extends RuntimeException {
@@ -317,14 +328,14 @@ public class DNSClient {
         }
     }
 
-    private static final String[] A     = { "A" };
-    private static final String[] AAAA  = { "AAAA" };
+    private static final String[] A     = { "A"     };
+    private static final String[] AAAA  = { "AAAA"  };
     private static final String[] CNAME = { "CNAME" };
-    private static final String[] TXT   = { "TXT" };
-    private static final String[] MX    = { "MX" };
-    private static final String[] PTR   = { "PTR" };
+    private static final String[] TXT   = { "TXT"   };
+    private static final String[] MX    = { "MX"    };
+    private static final String[] PTR   = { "PTR"   };
 
     private static final class DefaultInstanceHolder {
-        private static final DNSClient INSTANCE = new DNSClient((String) null, null);
+        private static final DNSClient INSTANCE = new DNSClient(null);
     }
 }
