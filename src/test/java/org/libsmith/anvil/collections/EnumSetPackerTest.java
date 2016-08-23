@@ -35,6 +35,16 @@ public class EnumSetPackerTest {
             }});
 
     @Test
+    public void packToWithVarargTest() {
+        EnumSetPacker<LongLongEnum> packer = EnumSetPacker.of(LongLongEnum.class);
+        assertThat(packer.packToByte(_4, _2)).isEqualTo(packer.packToByte(EnumSet.of(_4, _2)));
+        assertThat(packer.packToShort(_4, _2)).isEqualTo(packer.packToShort(EnumSet.of(_4, _2)));
+        assertThat(packer.packToInt(_4, _2)).isEqualTo(packer.packToInt(EnumSet.of(_4, _2)));
+        assertThat(packer.packToLong(_4, _2)).isEqualTo(packer.packToLong(EnumSet.of(_4, _2)));
+        assertThat(packer.packToLongInexact(_4, _2)).isEqualTo(packer.packToLongInexact(EnumSet.of(_4, _2)));
+    }
+
+    @Test
     public void packToByteTest() throws Exception {
         assertThat(
                 EnumSetPacker.of(ByteEnum.class).packToByte(EnumSet.allOf(ByteEnum.class))
