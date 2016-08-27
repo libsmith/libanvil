@@ -32,18 +32,6 @@ public class UncheckedException extends RuntimeException {
         }
     }
 
-    public static void wrap(Runnable callback) {
-        try {
-            callback.run();
-        }
-        catch (RuntimeException ex) {
-            throw ex;
-        }
-        catch (Exception ex) {
-            throw new UncheckedException(ex);
-        }
-    }
-
     public static void wrap(ThrowableRunnable callback) {
         try {
             callback.run();
@@ -61,7 +49,7 @@ public class UncheckedException extends RuntimeException {
             return callback.call();
         }
         catch (Exception ex) {
-            throw rethrow(ex);
+            throw UncheckedException.<Error>__rethrow(ex);
         }
     }
 
@@ -70,33 +58,25 @@ public class UncheckedException extends RuntimeException {
             callback.run();
         }
         catch (Exception ex) {
-            throw rethrow(ex);
-        }
-    }
-
-    public static void rethrow(Runnable callback) {
-        try {
-            callback.run();
-        }
-        catch (Exception ex) {
-            throw rethrow(ex);
+            throw UncheckedException.<Error>__rethrow(ex);
         }
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends Throwable> T rethrow(Throwable throwable) throws T {
+    public static <T extends Throwable> T __rethrow(Throwable throwable) throws T {
         throw (T) throwable;
     }
 
     @FunctionalInterface
     public interface ThrowableRunnable extends Runnable {
+
         @Override
         default void run() {
             try {
                 runEx();
             }
             catch (Throwable th) {
-                throw rethrow(th);
+                throw UncheckedException.<Error>__rethrow(th);
             }
         }
 
