@@ -1,8 +1,8 @@
 package org.libsmith.anvil.reflection;
 
-import com.sun.istack.internal.NotNull;
 import org.libsmith.anvil.collections.EnumSetPacker;
 
+import javax.annotation.Nonnull;
 import java.lang.reflect.Member;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -81,15 +81,15 @@ public enum Modifier {
         return notPresentIn(member.getModifiers());
     }
 
-    public static @NotNull EnumSet<Modifier> unpack(int packed) {
+    public static @Nonnull EnumSet<Modifier> unpack(int packed) {
         return PACKER.unpack(packed);
     }
 
-    public static int pack(@NotNull Modifier ... set) {
+    public static int pack(@Nonnull Modifier ... set) {
         return PACKER.packToInt(set);
     }
 
-    public static int pack(@NotNull Set<Modifier> set) {
+    public static int pack(@Nonnull Set<Modifier> set) {
         return PACKER.packToInt(set);
     }
 

@@ -1,6 +1,5 @@
 package org.libsmith.anvil.net.mail;
 
-import com.sun.istack.internal.NotNull;
 import org.libsmith.anvil.io.CountingOutputStream;
 import org.libsmith.anvil.log.LogRecordBuilder;
 import org.libsmith.anvil.text.Strings;
@@ -86,7 +85,7 @@ public class JavaMailDelivery implements MailDelivery {
         }
     }
 
-    private @NotNull Supplier<DeliveryResult> makeTask(final @Nonnull Message message) {
+    private @Nonnull Supplier<DeliveryResult> makeTask(final @Nonnull Message message) {
         DeliveryResult.Builder builder = DeliveryResult.Builder.queued(message);
         return () -> {
             builder.process();
