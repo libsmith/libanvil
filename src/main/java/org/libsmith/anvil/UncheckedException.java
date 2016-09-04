@@ -1,5 +1,6 @@
 package org.libsmith.anvil;
 
+import javax.annotation.Nonnull;
 import java.util.concurrent.Callable;
 
 /**
@@ -10,17 +11,25 @@ public class UncheckedException extends RuntimeException {
 
     private static final long serialVersionUID = -3877272876662615234L;
 
-    protected UncheckedException(Throwable ex) {
+    protected UncheckedException(@Nonnull Throwable ex) {
         super(ex);
+        setStackTrace(ex.getStackTrace());
     }
 
-    public static RuntimeException wrap(Throwable throwable) {
+    @Override
+    public synchronized Throwable fillInStackTrace() {
+        return this;
+    }
+
+    //<editor-fold desc="Description">
+    public static RuntimeException wrap(@Nonnull Throwable throwable) {
         return throwable instanceof RuntimeException
                     ? (RuntimeException) throwable
                     : new UncheckedException(throwable);
     }
+    //</editor-fold>
 
-    public static <T> T wrap(Callable<T> callback) {
+    public static <T> T wrap(@Nonnull Callable<T> callback) {
         try {
             return callback.call();
         }
@@ -32,7 +41,7 @@ public class UncheckedException extends RuntimeException {
         }
     }
 
-    public static void wrap(ThrowableRunnable callback) {
+    public static void wrap(@Nonnull ThrowableRunnable callback) {
         try {
             callback.run();
         }
@@ -44,7 +53,7 @@ public class UncheckedException extends RuntimeException {
         }
     }
 
-    public static <T> T rethrow(Callable<T> callback) {
+    public static <T> T rethrow(@Nonnull Callable<T> callback) {
         try {
             return callback.call();
         }
@@ -53,7 +62,7 @@ public class UncheckedException extends RuntimeException {
         }
     }
 
-    public static void rethrow(ThrowableRunnable callback) {
+    public static void rethrow(@Nonnull ThrowableRunnable callback) {
         try {
             callback.run();
         }
@@ -63,7 +72,7 @@ public class UncheckedException extends RuntimeException {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends Throwable> T __rethrow(Throwable throwable) throws T {
+    private static <T extends Throwable> T __rethrow(@Nonnull Throwable throwable) throws T {
         throw (T) throwable;
     }
 
