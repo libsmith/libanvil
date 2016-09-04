@@ -1,7 +1,7 @@
 package org.libsmith.anvil.time;
 
 import org.junit.Test;
-import org.libsmith.anvil.exception.ImmutabilityProhibitedException;
+import org.libsmith.anvil.exception.ImmutabilityViolationException;
 
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
@@ -81,13 +81,13 @@ public abstract class AbstractImmutableDateTest<T extends Date & DateExtensions>
     @SuppressWarnings("deprecation")
     public void immutabilityTest() throws Exception {
         Date val = val(123);
-        assertThatThrownBy(() -> val.setYear(1)).isInstanceOf(ImmutabilityProhibitedException.class);
-        assertThatThrownBy(() -> val.setMonth(1)).isInstanceOf(ImmutabilityProhibitedException.class);
-        assertThatThrownBy(() -> val.setDate(1)).isInstanceOf(ImmutabilityProhibitedException.class);
-        assertThatThrownBy(() -> val.setHours(1)).isInstanceOf(ImmutabilityProhibitedException.class);
-        assertThatThrownBy(() -> val.setMinutes(1)).isInstanceOf(ImmutabilityProhibitedException.class);
-        assertThatThrownBy(() -> val.setSeconds(1)).isInstanceOf(ImmutabilityProhibitedException.class);
-        assertThatThrownBy(() -> val.setTime(1)).isInstanceOf(ImmutabilityProhibitedException.class);
+        assertThatThrownBy(() -> val.setYear(1)).isInstanceOf(ImmutabilityViolationException.class);
+        assertThatThrownBy(() -> val.setMonth(1)).isInstanceOf(ImmutabilityViolationException.class);
+        assertThatThrownBy(() -> val.setDate(1)).isInstanceOf(ImmutabilityViolationException.class);
+        assertThatThrownBy(() -> val.setHours(1)).isInstanceOf(ImmutabilityViolationException.class);
+        assertThatThrownBy(() -> val.setMinutes(1)).isInstanceOf(ImmutabilityViolationException.class);
+        assertThatThrownBy(() -> val.setSeconds(1)).isInstanceOf(ImmutabilityViolationException.class);
+        assertThatThrownBy(() -> val.setTime(1)).isInstanceOf(ImmutabilityViolationException.class);
         assertThat(val).isEqualTo(val(123));
     }
 }

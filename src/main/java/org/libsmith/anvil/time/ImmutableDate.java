@@ -1,6 +1,6 @@
 package org.libsmith.anvil.time;
 
-import org.libsmith.anvil.exception.ImmutabilityProhibitedException;
+import org.libsmith.anvil.exception.ImmutabilityViolationException;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -91,42 +91,42 @@ public class ImmutableDate extends Date implements DateExtensions<ImmutableDate>
     @Override
     @SuppressWarnings("deprecation")
     public void setYear(int year) {
-        throw new ImmutabilityProhibitedException();
+        throw new ImmutabilityViolationException();
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public void setMonth(int month) {
-        throw new ImmutabilityProhibitedException();
+        throw new ImmutabilityViolationException();
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public void setDate(int date) {
-        throw new ImmutabilityProhibitedException();
+        throw new ImmutabilityViolationException();
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public void setHours(int hours) {
-        throw new ImmutabilityProhibitedException();
+        throw new ImmutabilityViolationException();
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public void setMinutes(int minutes) {
-        throw new ImmutabilityProhibitedException();
+        throw new ImmutabilityViolationException();
     }
 
     @Override
     @SuppressWarnings("deprecation")
     public void setSeconds(int seconds) {
-        throw new ImmutabilityProhibitedException();
+        throw new ImmutabilityViolationException();
     }
 
     @Override
     public void setTime(long time) {
-        throw new ImmutabilityProhibitedException();
+        throw new ImmutabilityViolationException();
     }
     //</editor-fold>
 }
