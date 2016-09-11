@@ -18,7 +18,7 @@ import static org.junit.Assert.*;
 public class DNSClientIT extends AbstractTest {
     private static final String UNKNOWN_HOST = "hernya.kakayato.hesushestvuyashaya.ru";
 
-    private DNSClient dnsClient = DNSClient.defaultInstance();
+    private DNSClient dnsClient = DNSClient.of("8.8.8.8");
 
     @Test
     public void resolveA() throws Exception {

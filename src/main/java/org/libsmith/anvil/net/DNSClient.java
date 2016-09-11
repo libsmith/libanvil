@@ -17,6 +17,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -271,7 +272,8 @@ public class DNSClient {
                                         .withMessage("Resolved {0} as {1} via {2}; {3}")
                                         .withParameters(type, list.isEmpty() ? "empty list" : list,
                                                         getServerNameDescription(),
-                                                        TimePeriod.tillNowFromMillis(start)));
+                                                        TimePeriod.tillNowFromNanos(start)
+                                                                  .toString(TimeUnit.MILLISECONDS)));
             }
 
             return list;
