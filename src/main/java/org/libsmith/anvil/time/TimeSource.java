@@ -39,4 +39,17 @@ public interface TimeSource {
             return TimeUnit.MILLISECONDS;
         }
     };
+
+    TimeSource MILLIS_TICK_TIME_SOURCE = new TimeSource() {
+
+        @Override
+        public long getTime() {
+            return System.nanoTime() / 1000;
+        }
+
+        @Override
+        public @Nonnull TimeUnit getResolution() {
+            return TimeUnit.MILLISECONDS;
+        }
+    };
 }

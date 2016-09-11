@@ -252,7 +252,7 @@ public class DNSClient {
     private @Nonnull List<String> resolve(@Nonnull String name, @Nonnull String[] types) throws NameNotFoundException {
         assert types.length == 1;
         String type = types[0];
-        long start = System.currentTimeMillis();
+        long start = System.nanoTime();
         try {
             LOG.finest(() -> MessageFormat.format("Resolve {0} via {1}", name, getServerNameDescription()));
             Attributes attributes = initialDirContext.getAttributes(name, types);
@@ -303,7 +303,7 @@ public class DNSClient {
     private String formatException(String name, long start, Throwable th) {
         return MessageFormat.format("Resolve {0} via {1} failed; {2}; {3}",
                                     name, getServerNameDescription(),
-                                    TimePeriod.tillNowFromMillis(start), th);
+                                    TimePeriod.tillNowFromNanos(start), th);
     }
 
     private String getServerNameDescription() {

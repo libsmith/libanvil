@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import static org.libsmith.anvil.time.TimeSource.MILLIS_TIME_SOURCE;
+import static org.libsmith.anvil.time.TimeSource.MILLIS_TICK_TIME_SOURCE;
 
 /**
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
@@ -26,7 +26,7 @@ import static org.libsmith.anvil.time.TimeSource.MILLIS_TIME_SOURCE;
 public class Stopwatch implements Serializable {
 
     private static final long serialVersionUID = 6703242737042402435L;
-    private static final TimeSource DEFAULT_TIME_SOURCE = MILLIS_TIME_SOURCE;
+    private static final TimeSource DEFAULT_TIME_SOURCE = MILLIS_TICK_TIME_SOURCE;
 
     private final @Nullable CharSequence taskName;
     private final long originTime;

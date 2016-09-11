@@ -34,7 +34,7 @@ public class StopwatchTest extends AbstractTest {
     @Test
     public void constructTest() {
         assertThat(Stopwatch.start().getTaskName()).isNull();
-        assertThat(Stopwatch.start().getTimeSource()).isEqualTo(TimeSource.MILLIS_TIME_SOURCE);
+        assertThat(Stopwatch.start().getTimeSource().getResolution()).isEqualTo(TimeUnit.MILLISECONDS);
         assertThat(Stopwatch.start().getOriginTime()).isGreaterThan(0);
         assertThat(Stopwatch.start().getOriginTime()).isLessThanOrEqualTo(System.currentTimeMillis());
         assertThat(Stopwatch.start("Test").getTaskName()).isEqualTo("Test");
@@ -72,7 +72,7 @@ public class StopwatchTest extends AbstractTest {
 
     @Test
     public void groupTest() {
-        assertThat(Stopwatch.group("Simple group").getTimeSource()).isEqualTo(TimeSource.MILLIS_TIME_SOURCE);
+        assertThat(Stopwatch.group("Simple group").getTimeSource().getResolution()).isEqualTo(TimeUnit.MILLISECONDS);
         assertThat(Stopwatch.group("Simple group").getGroupName()).isEqualTo("Simple group");
 
         Group group = Stopwatch.group("Group name", mockTimeSource);
