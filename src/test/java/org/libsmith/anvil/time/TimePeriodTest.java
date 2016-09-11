@@ -212,6 +212,7 @@ public class TimePeriodTest extends AbstractTest {
 
         assertEquals("0", TimePeriod.ZERO.toString());
         assertEquals("0h", TimePeriod.ZERO.toString(TimeUnit.HOURS, true));
+        assertEquals("42ms", TimePeriod.ofNanos(42424242).toString(TimeUnit.MILLISECONDS));
     }
 
     @Test

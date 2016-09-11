@@ -254,7 +254,7 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod>, Tempora
     }
 
     public String toString(TimeUnit minUnit) {
-        return toString(timeUnit, false);
+        return toString(minUnit, false);
     }
 
     public String toString(TimeUnit minUnit, boolean abbreviateZero) {
