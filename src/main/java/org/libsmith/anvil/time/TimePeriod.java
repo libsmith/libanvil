@@ -3,9 +3,9 @@ package org.libsmith.anvil.time;
 import javax.annotation.Nonnull;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.Objects;
+import java.time.Duration;
+import java.time.temporal.*;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -16,7 +16,8 @@ import java.util.regex.Pattern;
  * @created 28.10.2015 16:26
  */
 @SuppressWarnings("WeakerAccess")
-public class TimePeriod implements Serializable, Comparable<TimePeriod> {
+public class TimePeriod implements Serializable, Comparable<TimePeriod>, TemporalAmount {
+
     private static final long serialVersionUID = -4819273455430547917L;
 
     public static final TimePeriod ZERO = new TimePeriod(0, TimeUnit.NANOSECONDS);
@@ -28,9 +29,48 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
     private final long duration;
     private final TimeUnit timeUnit;
 
-    public TimePeriod(long duration, @Nonnull TimeUnit timeUnit) {
+    protected TimePeriod(long duration, @Nonnull TimeUnit timeUnit) {
         this.duration = duration;
         this.timeUnit = timeUnit;
+    }
+
+    public static TimePeriod of(long duration, @Nonnull TimeUnit timeUnit) {
+        return new TimePeriod(duration, timeUnit);
+    }
+
+    public static TimePeriod ofInexact(long duration, @Nonnull TimeUnit timeUnit) {
+        if (duration == 0) {
+            return ZERO;
+        }
+        return new TimePeriod(duration, timeUnit);
+    }
+
+    public static TimePeriod ofNanos(long nanoseconds) {
+        return ofInexact(nanoseconds, TimeUnit.NANOSECONDS);
+    }
+
+    public static TimePeriod ofMicros(long microseconds) {
+        return ofInexact(microseconds, TimeUnit.MICROSECONDS);
+    }
+
+    public static TimePeriod ofMillis(long milliseconds) {
+        return ofInexact(milliseconds, TimeUnit.MILLISECONDS);
+    }
+
+    public static TimePeriod ofSeconds(long seconds) {
+        return ofInexact(seconds, TimeUnit.SECONDS);
+    }
+
+    public static TimePeriod ofMinutes(long minutes) {
+        return ofInexact(minutes, TimeUnit.MINUTES);
+    }
+
+    public static TimePeriod ofHours(long hours) {
+        return ofInexact(hours, TimeUnit.HOURS);
+    }
+
+    public static TimePeriod ofDays(long days) {
+        return ofInexact(days, TimeUnit.DAYS);
     }
 
     public @Nonnull TimeUnit getTimeUnit() {
@@ -103,6 +143,12 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
     }
 
     public TimePeriod mul(long val) {
+        if (val == 0) {
+            return ZERO;
+        }
+        else if (val == 1 || getDuration() == 0) {
+            return this;
+        }
         try {
             return new TimePeriod(Math.multiplyExact(getDuration(), val), getTimeUnit());
         }
@@ -112,6 +158,9 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
     }
 
     public TimePeriod div(long val) {
+        if (val == 1 || getDuration() == 0 && val != 0) {
+            return this;
+        }
         return new TimePeriod(getDuration() / val, getTimeUnit());
     }
 
@@ -339,6 +388,30 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
         return value == 0 ? TimePeriod.ZERO : new TimePeriod(value, resolution);
     }
 
+    public TimePeriod normalize() {
+        long duration = getDuration();
+        TimeUnit unit = getTimeUnit();
+        if (duration == 0) {
+            return TimePeriod.ZERO;
+        }
+        TimeUnit[] units = TimeUnit.values();
+        while (unit.ordinal() < units.length - 1) {
+            TimeUnit subjectUnit = units[unit.ordinal() + 1];
+            long subjectDuration = subjectUnit.convert(duration, unit);
+            if (unit.convert(subjectDuration, subjectUnit) == duration) {
+                duration = subjectDuration;
+                unit = subjectUnit;
+            }
+            else {
+                break;
+            }
+        }
+        if (unit == getTimeUnit()) {
+            return this;
+        }
+        return new TimePeriod(duration, unit);
+    }
+
     private static long convertExact(long sourceDuration, TimeUnit sourceTimeUnit, TimeUnit destTimeUnit) {
         if (sourceTimeUnit == destTimeUnit || sourceDuration == 0) {
             return sourceDuration;
@@ -375,6 +448,55 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
         }
     }
 
+    //<editor-fold desc="JSR310 Glue">
+    @Override
+    public long get(TemporalUnit unit) {
+        if (convertToTemporalUnit(timeUnit).equals(unit)) {
+            return duration;
+        }
+        throw new UnsupportedTemporalTypeException("Unsupported type " + unit);
+    }
+
+    @Override
+    public List<TemporalUnit> getUnits() {
+        return Collections.singletonList(convertToTemporalUnit(timeUnit));
+    }
+
+    private static TemporalUnit convertToTemporalUnit(TimeUnit timeUnit) {
+        switch (timeUnit) {
+            case NANOSECONDS:   return ChronoUnit.NANOS;
+            case MICROSECONDS:  return ChronoUnit.MICROS;
+            case MILLISECONDS:  return ChronoUnit.MILLIS;
+            case SECONDS:       return ChronoUnit.SECONDS;
+            case MINUTES:       return ChronoUnit.MINUTES;
+            case HOURS:         return ChronoUnit.HOURS;
+            case DAYS:          return ChronoUnit.DAYS;
+            default:            throw new RuntimeException(timeUnit.toString());
+        }
+    }
+
+    public static TimePeriod of(TemporalAmount temporalAmount) {
+        if (temporalAmount instanceof TimePeriod) {
+            return (TimePeriod) temporalAmount;
+        }
+        Duration asDuration = Duration.from(temporalAmount);
+        return TimePeriod.ofSeconds(asDuration.getSeconds())
+                         .add(TimePeriod.ofNanos(asDuration.getNano()).normalize())
+                         .normalize();
+    }
+
+    @Override
+    public Temporal addTo(Temporal temporal) {
+        return temporal.plus(duration, convertToTemporalUnit(timeUnit));
+    }
+
+    @Override
+    public Temporal subtractFrom(Temporal temporal) {
+        return temporal.minus(duration, convertToTemporalUnit(timeUnit));
+    }
+    //</editor-fold>
+
+    //<editor-fold desc="JAXB Glue">
     public static class Adapter extends XmlAdapter<String, TimePeriod> {
         @Override
         public TimePeriod unmarshal(String string) throws Exception {
@@ -386,4 +508,5 @@ public class TimePeriod implements Serializable, Comparable<TimePeriod> {
             return timePeriod == null ? null : timePeriod.toString();
         }
     }
+    //</editor-fold>
 }

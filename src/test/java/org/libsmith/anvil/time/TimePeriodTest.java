@@ -9,7 +9,12 @@ import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import java.time.Duration;
+import java.time.LocalTime;
+import java.time.temporal.*;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -20,6 +25,28 @@ import static org.junit.Assert.*;
  * @created 18.02.2016 3:00
  */
 public class TimePeriodTest extends AbstractTest {
+
+    @Test
+    public void instantiationTest() {
+        assertEquals(0, TimePeriod.of(0, TimeUnit.DAYS).compareTo(TimePeriod.ZERO));
+        assertNotSame(TimePeriod.ZERO, TimePeriod.of(0, TimeUnit.DAYS));
+        assertSame(TimePeriod.ZERO, TimePeriod.ofInexact(0, TimeUnit.DAYS));
+        assertSame(TimePeriod.ZERO, TimePeriod.ofNanos(0));
+        assertSame(TimePeriod.ZERO, TimePeriod.ofMicros(0));
+        assertSame(TimePeriod.ZERO, TimePeriod.ofMillis(0));
+        assertSame(TimePeriod.ZERO, TimePeriod.ofSeconds(0));
+        assertSame(TimePeriod.ZERO, TimePeriod.ofMinutes(0));
+        assertSame(TimePeriod.ZERO, TimePeriod.ofHours(0));
+        assertSame(TimePeriod.ZERO, TimePeriod.ofDays(0));
+
+        assertEquals("42ns", TimePeriod.ofNanos(42).toString());
+        assertEquals("42us", TimePeriod.ofMicros(42).toString());
+        assertEquals("42ms", TimePeriod.ofMillis(42).toString());
+        assertEquals("42s", TimePeriod.ofSeconds(42).toString());
+        assertEquals("42m", TimePeriod.ofMinutes(42).toString());
+        assertEquals("1d 18h", TimePeriod.ofHours(42).toString());
+        assertEquals("42d", TimePeriod.ofDays(42).toString());
+    }
 
     @Test
     public void getDurationTest() {
@@ -43,6 +70,7 @@ public class TimePeriodTest extends AbstractTest {
         //noinspection ObjectEqualsNull
         assertFalse(TimePeriod.ZERO.equals(null));
         assertEquals(TimePeriod.ZERO, TimePeriod.ZERO);
+        assertNotEquals(new TimePeriod(0, TimeUnit.DAYS), new TimePeriod(0, TimeUnit.SECONDS));
         assertEquals(new TimePeriod(1, TimeUnit.DAYS), new TimePeriod(1, TimeUnit.DAYS));
         assertEquals(new TimePeriod(2, TimeUnit.HOURS), new TimePeriod(2, TimeUnit.HOURS));
         assertNotEquals(new TimePeriod(1, TimeUnit.SECONDS), new TimePeriod(1000, TimeUnit.MILLISECONDS));
@@ -75,6 +103,7 @@ public class TimePeriodTest extends AbstractTest {
         assertTrue(new TimePeriod(Long.MAX_VALUE, TimeUnit.DAYS).compareTo(new TimePeriod(Long.MIN_VALUE, TimeUnit.DAYS)) > 0);
         assertTrue(new TimePeriod(Long.MIN_VALUE, TimeUnit.DAYS).compareTo(new TimePeriod(Long.MAX_VALUE, TimeUnit.DAYS)) < 0);
 
+        assertTrue(new TimePeriod(0, TimeUnit.DAYS).compareTo(new TimePeriod(0, TimeUnit.HOURS)) == 0);
         assertTrue(new TimePeriod(1, TimeUnit.DAYS).compareTo(new TimePeriod(24, TimeUnit.HOURS)) == 0);
         assertTrue(new TimePeriod(1, TimeUnit.DAYS).compareTo(new TimePeriod(23, TimeUnit.HOURS)) > 0);
         assertTrue(new TimePeriod(1, TimeUnit.DAYS).compareTo(new TimePeriod(25, TimeUnit.HOURS)) < 0);
@@ -96,27 +125,23 @@ public class TimePeriodTest extends AbstractTest {
 
     @Test
     public void fromTest() {
-        assertEquals(TimeUnit.DAYS.toMillis(1) + 1234, new TimePeriod(1, TimeUnit.DAYS).from(new Date(1234)).getTime());
+        assertEquals(TimeUnit.DAYS.toMillis(1) + 1234, TimePeriod.ofDays(1).from(new Date(1234)).getTime());
     }
 
     @Test
     public void beforeTest() {
-        assertEquals(1234 - TimeUnit.DAYS.toMillis(1), new TimePeriod(1, TimeUnit.DAYS).before(new Date(1234))
-                                                                                       .getTime());
+        assertEquals(1234 - TimeUnit.DAYS.toMillis(1), TimePeriod.ofDays(1).before(new Date(1234)).getTime());
     }
 
     @Test
     public void fromNow() {
-        assertTrue(System.currentTimeMillis() - new TimePeriod(1, TimeUnit.DAYS).fromNow()
-                                                                                .getTime() + TimeUnit.DAYS.toMillis(1) < 100);
+        assertTrue(System.currentTimeMillis() - TimePeriod.ofDays(1).fromNow().getTime() + TimeUnit.DAYS.toMillis(1) < 100);
     }
 
     @Test
     public void beforeNow() {
-        assertTrue(System.currentTimeMillis() - new TimePeriod(1, TimeUnit.DAYS).beforeNow()
-                                                                                .getTime() - TimeUnit.DAYS.toMillis(1) < 100);
+        assertTrue(System.currentTimeMillis() - TimePeriod.ofDays(1).beforeNow().getTime() - TimeUnit.DAYS.toMillis(1) < 100);
     }
-
 
     @Test
     public void parseTest() {
@@ -193,7 +218,7 @@ public class TimePeriodTest extends AbstractTest {
     public void stressToStringParseTest() {
         Random random = new Random(42);
         for (int i = 0; i < 100_000; i++) {
-            TimePeriod timePeriod = new TimePeriod(random.nextLong(), TimeUnit.NANOSECONDS);
+            TimePeriod timePeriod = TimePeriod.ofNanos(random.nextLong());
             assertEquals(timePeriod.toString(), TimePeriod.parse(timePeriod.toString()).toString());
         }
     }
@@ -243,9 +268,9 @@ public class TimePeriodTest extends AbstractTest {
 
     @Test(timeout = 1000)
     public void sleepTest() throws InterruptedException {
-        long now = System.currentTimeMillis();
-        new TimePeriod(750, TimeUnit.MILLISECONDS).sleep();
-        assertTrue(System.currentTimeMillis() >= now + 750);
+        long now = System.nanoTime();
+        TimePeriod.ofMillis(750).sleep();
+        assertTrue(System.nanoTime() >= now + TimeUnit.MILLISECONDS.toNanos(750));
     }
 
     @Test
@@ -280,12 +305,12 @@ public class TimePeriodTest extends AbstractTest {
 
     @Test(expected = ArithmeticException.class)
     public void addOverflowTestAtConversion() {
-        new TimePeriod(TimeUnit.MILLISECONDS.toDays(Long.MIN_VALUE) - 1, TimeUnit.DAYS).add(TimePeriod.parse("1d 1ms"));
+        TimePeriod.ofDays(TimeUnit.MILLISECONDS.toDays(Long.MIN_VALUE) - 1).add(TimePeriod.parse("1d 1ms"));
     }
 
     @Test(expected = ArithmeticException.class)
     public void addOverflowTestAtAddition() {
-        new TimePeriod(TimeUnit.MILLISECONDS.toDays(Long.MAX_VALUE), TimeUnit.DAYS).add(TimePeriod.parse("1d 1ms"));
+        TimePeriod.ofDays(TimeUnit.MILLISECONDS.toDays(Long.MAX_VALUE)).add(TimePeriod.parse("1d 1ms"));
     }
 
     @Test
@@ -320,6 +345,9 @@ public class TimePeriodTest extends AbstractTest {
     @Test
     public void mulTest() {
         assertEquals("4h 2m", TimePeriod.parse("2h 1m").mul(2).toString());
+        assertSame(TimePeriod.ZERO, TimePeriod.ZERO.mul(3));
+        assertSame(TimePeriod.MAX_VALUE, TimePeriod.MAX_VALUE.mul(1));
+        assertSame(TimePeriod.ZERO, TimePeriod.ZERO.mul(0));
     }
 
     @Test(expected = ArithmeticException.class)
@@ -330,10 +358,96 @@ public class TimePeriodTest extends AbstractTest {
     @Test
     public void divTest() {
         assertEquals("2h 1m", TimePeriod.parse("4h 2m").div(2).toString());
+        assertSame(TimePeriod.MAX_VALUE, TimePeriod.MAX_VALUE.div(1));
+        assertSame(TimePeriod.ZERO, TimePeriod.ZERO.div(100));
+    }
+
+    @Test(expected = ArithmeticException.class)
+    public void divZeroByZeroTest() {
+        TimePeriod.ZERO.div(0);
+    }
+
+    @Test
+    public void normalizeTest() {
+
+        assertSame(TimePeriod.ZERO, new TimePeriod(0, TimeUnit.HOURS).normalize());
+
+        {
+            TimePeriod oneSecond = new TimePeriod(TimeUnit.SECONDS.toMillis(1), TimeUnit.MILLISECONDS).normalize();
+            assertEquals(TimeUnit.SECONDS, oneSecond.getTimeUnit());
+            assertEquals(1, oneSecond.getDuration());
+        }
+
+        {
+            TimePeriod elevenHours = new TimePeriod(TimeUnit.HOURS.toSeconds(11), TimeUnit.SECONDS).normalize();
+            assertEquals(TimeUnit.HOURS, elevenHours.getTimeUnit());
+            assertEquals(11, elevenHours.getDuration());
+        }
+
+        {
+            TimePeriod twentyFourDays = new TimePeriod(TimeUnit.DAYS.toSeconds(24), TimeUnit.SECONDS).normalize();
+            assertEquals(TimeUnit.DAYS, twentyFourDays.getTimeUnit());
+            assertEquals(24, twentyFourDays.getDuration());
+        }
+
+        {
+            TimePeriod threeMinutes = new TimePeriod(3, TimeUnit.MINUTES).normalize();
+            assertEquals(TimeUnit.MINUTES, threeMinutes.getTimeUnit());
+            assertEquals(3, threeMinutes.getDuration());
+        }
+    }
+
+    @Test
+    @SuppressWarnings("RedundantCast")
+    public void constructFromJSR310Test() {
+
+        {
+            TimePeriod subj = TimePeriod.parse("1d 42m 34s 4ms 25ns");
+            assertEquals(subj, TimePeriod.of(Duration.ofNanos(subj.getDuration(TimeUnit.NANOSECONDS))));
+            assertSame(subj, TimePeriod.of((TemporalAmount) subj));
+        }
+
+        {
+            TemporalAmount amount = new TemporalAmountImpl(2, new TemporalUnitImpl(Duration.ofMillis(2002)));
+            assertEquals("4s 4ms", TimePeriod.of(amount).toString());
+        }
+    }
+
+    @Test
+    public void temporalOperationsOnJSR310() {
+        LocalTime lt = LocalTime.of(3, 14, 42);
+        TimePeriod tp = TimePeriod.parse("5m 5s");
+        assertEquals("03:19:47", tp.addTo(lt).toString());
+        assertEquals("03:09:37", tp.subtractFrom(lt).toString());
+    }
+
+    @Test
+    public void unitsForJSR310Test() {
+        assertEquals(Collections.singletonList(ChronoUnit.NANOS), TimePeriod.parse("1ns").getUnits());
+        assertEquals(Collections.singletonList(ChronoUnit.MICROS), TimePeriod.parse("1us").getUnits());
+        assertEquals(Collections.singletonList(ChronoUnit.MILLIS), TimePeriod.parse("1ms").getUnits());
+        assertEquals(Collections.singletonList(ChronoUnit.SECONDS), TimePeriod.parse("1s").getUnits());
+        assertEquals(Collections.singletonList(ChronoUnit.MINUTES), TimePeriod.parse("1m").getUnits());
+        assertEquals(Collections.singletonList(ChronoUnit.HOURS), TimePeriod.parse("1h").getUnits());
+        assertEquals(Collections.singletonList(ChronoUnit.DAYS), TimePeriod.parse("1d").getUnits());
+
+        assertEquals(1, TimePeriod.parse("1ns").get(ChronoUnit.NANOS));
+        assertEquals(1, TimePeriod.parse("1us").get(ChronoUnit.MICROS));
+        assertEquals(1, TimePeriod.parse("1ms").get(ChronoUnit.MILLIS));
+        assertEquals(1, TimePeriod.parse("1s").get(ChronoUnit.SECONDS));
+        assertEquals(1, TimePeriod.parse("1m").get(ChronoUnit.MINUTES));
+        assertEquals(1, TimePeriod.parse("1h").get(ChronoUnit.HOURS));
+        assertEquals(1, TimePeriod.parse("1d").get(ChronoUnit.DAYS));
+    }
+
+    @Test(expected = UnsupportedTemporalTypeException.class)
+    public void unsupportedGetTypeException() {
+        TimePeriod.parse("1m").get(ChronoUnit.HOURS);
     }
 
     @Test
     public void marshallTest() throws JAXBException {
+
         JAXBContextHelper context = JAXBContextHelper.builder().with(SomeObject.class).build();
         SomeObject someObject = new SomeObject();
         someObject.setTimePeriod(new TimePeriod(12423523536714L, TimeUnit.NANOSECONDS));
@@ -355,6 +469,80 @@ public class TimePeriodTest extends AbstractTest {
 
         public void setTimePeriod(TimePeriod timePeriod) {
             this.timePeriod = timePeriod;
+        }
+    }
+
+    private class TemporalUnitImpl implements TemporalUnit {
+
+        private final Duration duration;
+
+        private TemporalUnitImpl(Duration duration) {
+            this.duration = duration;
+        }
+
+        @Override
+        public Duration getDuration() {
+            return duration;
+        }
+
+        @Override
+        public boolean isDurationEstimated() {
+            return false;
+        }
+
+        @Override
+        public boolean isDateBased() {
+            return false;
+        }
+
+        @Override
+        public boolean isTimeBased() {
+            return true;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public <R extends Temporal> R addTo(R temporal, long amount) {
+            return (R) temporal.plus(amount, this);
+        }
+
+        @Override
+        public long between(Temporal temporal1Inclusive, Temporal temporal2Exclusive) {
+            return temporal1Inclusive.until(temporal2Exclusive, this);
+        }
+    }
+
+    private class TemporalAmountImpl implements TemporalAmount {
+
+        private final long amount;
+        private final TemporalUnit temporalUnit;
+
+        private TemporalAmountImpl(long amount, TemporalUnit temporalUnit) {
+            this.amount = amount;
+            this.temporalUnit = temporalUnit;
+        }
+
+        @Override
+        public long get(TemporalUnit unit) {
+            if (unit != temporalUnit) {
+                throw new RuntimeException();
+            }
+            return amount;
+        }
+
+        @Override
+        public List<TemporalUnit> getUnits() {
+            return Collections.singletonList(temporalUnit);
+        }
+
+        @Override
+        public Temporal addTo(Temporal temporal) {
+            return temporal.plus(amount, temporalUnit);
+        }
+
+        @Override
+        public Temporal subtractFrom(Temporal temporal) {
+            return temporal.minus(amount, temporalUnit);
         }
     }
 }
