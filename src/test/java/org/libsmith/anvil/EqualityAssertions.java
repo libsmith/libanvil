@@ -14,33 +14,44 @@ public class EqualityAssertions {
     private final boolean hashCodeAssertions;
     private final boolean reverseEquality;
     private final int repeatCount;
+    private final Boolean equalityMode;
 
     private EqualityAssertions(List<Object> equalitySubjects, boolean hashCodeAssertions,
-                               boolean reverseEquality, int repeatCount) {
+                               boolean reverseEquality, int repeatCount, Boolean equalityMode) {
         this.equalitySubjects = equalitySubjects;
         this.hashCodeAssertions = hashCodeAssertions;
         this.reverseEquality = reverseEquality;
         this.repeatCount = repeatCount;
+        this.equalityMode = equalityMode;
     }
 
     public static EqualityAssertions assertThat(Object object) {
         assertNotNull(object);
-        return new EqualityAssertions(Collections.singletonList(object), true, true, 3);
+        return new EqualityAssertions(Collections.singletonList(object), true, false, 3, null);
     }
 
     public EqualityAssertions withoutHashCodeAssertions() {
-        return new EqualityAssertions(equalitySubjects, false, reverseEquality, repeatCount);
+        return new EqualityAssertions(equalitySubjects, false, reverseEquality, repeatCount, equalityMode);
     }
 
     public EqualityAssertions withRepeatCount(int repeatCount) {
-        return new EqualityAssertions(equalitySubjects, hashCodeAssertions, reverseEquality, repeatCount);
+        return new EqualityAssertions(equalitySubjects, hashCodeAssertions, reverseEquality, repeatCount, equalityMode);
+    }
+
+    public EqualityAssertions withReverseEquality() {
+        return new EqualityAssertions(equalitySubjects, hashCodeAssertions, true, repeatCount, equalityMode);
     }
 
     public EqualityAssertions and(Object object) {
         assertNotNull(object);
-        List<Object> equalitySubjects = new ArrayList<>(this.equalitySubjects);
-        equalitySubjects.add(object);
-        return new EqualityAssertions(equalitySubjects, hashCodeAssertions, reverseEquality, repeatCount);
+        if (equalityMode != null) {
+            return toEqualsOrNotToEqualsTo(object, equalityMode);
+        }
+        else {
+            List<Object> equalitySubjects = new ArrayList<>(this.equalitySubjects);
+            equalitySubjects.add(object);
+            return new EqualityAssertions(equalitySubjects, hashCodeAssertions, reverseEquality, repeatCount, null);
+        }
     }
 
     public EqualityAssertions equalsTogether() {
@@ -59,48 +70,48 @@ public class EqualityAssertions {
         return toEqualsOrNotToEqualsTo(object, false);
     }
 
-    private EqualityAssertions toEqualsOrNotToEqualsTo(Object object, boolean equalAssertion) {
+    private EqualityAssertions toEqualsOrNotToEqualsTo(Object expected, boolean equalityMode) {
 
-        assertNotNull(object);
+        assertNotNull(expected);
         if (equalitySubjects.size() < 1) {
             throw new AssertionError("Insufficient data for equality assertion");
         }
 
-        assertThatSubjectSatisfyGeneralContract(object);
+        assertThatSubjectSatisfyGeneralContract(expected);
 
         for (int take = 0; take < repeatCount; take++) {
             for (int i = 0; i < equalitySubjects.size(); i++) {
-                String message = "Object at index " + i + " must be " + (equalAssertion ? "" : "not ") +
-                                 "equal to object '" + object + "'" +
+                Object actual = equalitySubjects.get(i);
+                String message = "Object " + describeObject(actual) + " at index " + i + " must be " +
+                                 (equalityMode ? "" : "not ") + "equal to object " + describeObject(expected) +
                                  (take > 0 ? ", take " + (take + 1) + " of " + repeatCount + ")" : "");
-                Object other = equalitySubjects.get(i);
-                assertThatSubjectSatisfyGeneralContract(other);
-                if (equalAssertion) {
-                    assertEquals(message, other, object);
+                assertThatSubjectSatisfyGeneralContract(actual);
+                if (equalityMode) {
+                    assertEquals(message, expected, actual);
                     if (reverseEquality) {
-                        assertEquals(message, object, other);
+                        assertEquals(message, actual, expected);
                     }
                 }
                 else {
-                    assertNotEquals(message, other, object);
+                    assertNotEquals(message, expected, actual);
                     if (reverseEquality) {
-                        assertNotEquals(message, object, other);
+                        assertNotEquals(message, actual, expected);
                     }
                 }
             }
-            if (hashCodeAssertions && equalAssertion) {
-                int referenceHashCode = object.hashCode();
+            if (hashCodeAssertions && equalityMode) {
+                int referenceHashCode = expected.hashCode();
                 for (int i = 0; i < equalitySubjects.size(); i++) {
                     Object other = equalitySubjects.get(i);
                     String message = "Hash code of object at index " + i +
-                                     " must be equal to hash code of object '" + object + "'" +
+                                     " must be equal to hash code of object '" + expected + "'" +
                                      (take > 0 ? ", take " + (take + 1) + " of " + repeatCount + ")" : "");
                     assertEquals(message, referenceHashCode, other.hashCode());
                 }
             }
         }
 
-        return this;
+        return new EqualityAssertions(equalitySubjects, hashCodeAssertions, reverseEquality, repeatCount, equalityMode);
     }
 
     private EqualityAssertions equalsTogetherAssertion(boolean equalAssertion) {
@@ -170,6 +181,10 @@ public class EqualityAssertions {
         if (actual.equals(expected)) {
             throw new AssertionError(message);
         }
+    }
+
+    private static String describeObject(Object object) {
+        return object == null ? "<null>" : object.getClass().getSimpleName() + "('" + object.toString() + "')";
     }
 }
 
