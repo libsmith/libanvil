@@ -1,17 +1,24 @@
 package org.libsmith.anvil.text;
 
 import javax.annotation.Nonnull;
+import javax.annotation.concurrent.NotThreadSafe;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  * @author Dmitriy Balakin <dmitriy.balakin@0x0000.ru>
  * @created 21.03.16 2:54
  */
 public class Strings {
+
+    private Strings()
+    { }
 
     public static boolean isEmpty(CharSequence charSequence) {
         return charSequence == null || charSequence.toString().isEmpty();
@@ -41,15 +48,6 @@ public class Strings {
 
     public static <T extends CharSequence> Optional<T> ifNotEmpty(T charSequence) {
         return isNotEmpty(charSequence) ? Optional.of(charSequence) : Optional.empty();
-    }
-
-    public static <T extends CharSequence> Optional<Supplier<T>> ifNotEmpty(Supplier<T> supplier) {
-        T value = supplier.get();
-        return isNotEmpty(value) ? Optional.of(() -> value) : Optional.empty();
-    }
-
-    public static <T extends CharSequence> Optional<Supplier<T>> ifNotEmpty(LazyCharSequence<T> supplier) {
-        return ifNotEmpty((Supplier<T>) supplier);
     }
 
     public static boolean isBlank(CharSequence charSequence) {
@@ -89,26 +87,16 @@ public class Strings {
         return !isBlank(charSequence) ? Optional.of(charSequence) : Optional.empty();
     }
 
-    public static <T extends CharSequence> Optional<Supplier<T>> ifNotBlank(Supplier<T> charSequence) {
-        T value = charSequence.get();
-        return !isBlank(value) ? Optional.of(() -> value) : Optional.empty();
-    }
-
-    public static <T extends CharSequence> Optional<Supplier<T>> ifNotBlank(LazyCharSequence<T> supplier) {
-        return ifNotBlank((Supplier<T>) supplier);
-    }
-
-    public static <T extends CharSequence> LazyCharSequence<T> lazy(Supplier<T> supplier) {
+    public static <T extends CharSequence> LazyCharSequence<T> lazy(@Nonnull Supplier<T> supplier) {
         return new LazyCharSequence<>(supplier);
     }
 
-    public static LazyCharSequence<String> lazy(CharSequence charSequence) {
-        return new LazyCharSequence<>(() -> charSequence == null ? null : charSequence.toString());
+    public static LazyCharSequence<String> lazy(@Nonnull String constantValue) {
+        return new LazyCharSequence<>(constantValue);
     }
 
-    public static LazyCharSequence<String> lazy(CharSequence pattern, Object ... arguments) {
-        return new LazyCharSequence<>(() -> pattern == null ? null
-                                                            : MessageFormat.format(pattern.toString(), arguments));
+    public static LazyCharSequence<String> lazy(@Nonnull String pattern, Object ... arguments) {
+        return new LazyCharSequence<String>(() -> MessageFormat.format(pattern, arguments));
     }
 
     public static LazyStringBuilder lazyStringBuilder() {
@@ -175,19 +163,27 @@ public class Strings {
         }
 
         private StringBuilder build() {
-            suppliers.stream().map(Supplier::get).forEach(stringBuilder::append);
+            if (!suppliers.isEmpty()) {
+                suppliers.stream().map(Supplier::get).forEach(stringBuilder::append);
+                suppliers.clear();
+            }
             return stringBuilder;
         }
     }
 
+    @NotThreadSafe // Moderate
     public static class LazyCharSequence<T extends CharSequence> implements Supplier<T>, CharSequence {
 
         private final Supplier<T> supplier;
-
         private T value;
 
         protected LazyCharSequence(Supplier<T> supplier) {
             this.supplier = supplier;
+        }
+
+        protected LazyCharSequence(T value) {
+            this.supplier = null;
+            this.value = Objects.requireNonNull(value);
         }
 
         @Override
@@ -206,13 +202,23 @@ public class Strings {
         }
 
         @Override
-        public T get() {
-            return value == null ? value = supplier.get() : value;
+        public @Nonnull T get() {
+            return value == null ? value = requireNonNull(supplier.get()) : value;
         }
 
         @Override
         public @Nonnull String toString() {
             return get().toString();
+        }
+
+        @Override
+        public int hashCode() {
+            return get().hashCode();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof CharSequence && get().equals(obj.toString());
         }
     }
 }
