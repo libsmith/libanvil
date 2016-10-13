@@ -71,7 +71,8 @@ public interface DynamicBean {
         private MethodInvoker makeAccessor(Method method) {
 
             String name = method.getName();
-            if (method.getDeclaringClass() == Object.class) {
+            Class<?> methodClass = method.getDeclaringClass();
+            if (methodClass == Object.class) {
                 if ("equals".equals(name)) {
                     return (self, args) -> self == args[0];
                 }
@@ -83,31 +84,33 @@ public interface DynamicBean {
                     return (self, args) -> self.getClass().getName() + "@" + self.hashCode();
                 }
             }
-            if (method.getDeclaringClass() == DynamicBean.class) {
+            if (methodClass == Map.class) {
+                return (self, args) -> method.invoke(propertiesSupplier.get(), args);
+            }
+            if (methodClass == DynamicBean.class) {
                 return (self, args) -> method.invoke(this, args);
             }
             if (method.isDefault()) {
                 try {
-                    Class<?> declaringClass = method.getDeclaringClass();
                     MethodHandles.Lookup lookup = null;
                     if (LOOKUP_CONSTRUCTOR != null) {
                         try {
-                            lookup = LOOKUP_CONSTRUCTOR.newInstance(declaringClass, MethodHandles.Lookup.PRIVATE);
+                            lookup = LOOKUP_CONSTRUCTOR.newInstance(methodClass, MethodHandles.Lookup.PRIVATE);
                         }
                         catch (InstantiationException | InvocationTargetException ignored)
                         { }
                     }
                     if (lookup == null) {
-                        lookup = MethodHandles.lookup().in(declaringClass);
+                        lookup = MethodHandles.lookup().in(methodClass);
                     }
-                    MethodHandle methodHandle = lookup.unreflectSpecial(method, declaringClass);
+                    MethodHandle methodHandle = lookup.unreflectSpecial(method, methodClass);
                     return (proxy, args) -> methodHandle.bindTo(proxy).invokeWithArguments(args);
                 }
                 catch (IllegalAccessException ex) {
                     throw new RuntimeException(ex);
                 }
             }
-            Namespace namespaceDescriptor = method.getDeclaringClass().getAnnotation(Namespace.class);
+            Namespace namespaceDescriptor = methodClass.getAnnotation(Namespace.class);
             Function<String, String> namespace = val -> {
                 if (namespaceDescriptor == null) {
                     return val;

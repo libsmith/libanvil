@@ -5,6 +5,7 @@ import org.junit.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -187,13 +188,20 @@ public class DynamicBeanTest {
         DynamicBean.of(Collections.emptyMap()).as(GenericInterface.class).unsupportedMethod();
     }
 
+    @Test
+    public void asMapTest() {
+        GenericInterface gi = DynamicBean.of(new HashMap<>()).as(GenericInterface.class);
+        gi.setSomeProperty("some value");
+        Assert.assertEquals("some value", gi.as(Map.class).get("someProperty"));
+    }
+
     interface PropertyDescribed {
 
         @DynamicBean.Property(name = "someProperty")
         String getAJustGetter();
     }
 
-    interface GenericInterface {
+    interface GenericInterface extends DynamicBean {
 
         String getSomeProperty();
         void setSomeProperty(String someProperty);
