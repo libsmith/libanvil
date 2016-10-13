@@ -5,7 +5,6 @@ import java.lang.reflect.*;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-
 /**
  * http://habrahabr.ru/blogs/java/66593/ и немного модифицировано
  *
@@ -13,67 +12,58 @@ import java.util.Deque;
  * @created 20.03.16 5:06
  */
 public class GenericReflection<T> {
+
     private final Class<T> genericClass;
-    private final int parameterIndex;
 
-    protected GenericReflection(Class<T> genericClass, int parameterIndex) {
+    protected GenericReflection(Class<T> genericClass) {
         this.genericClass = genericClass;
-        this.parameterIndex = parameterIndex;
     }
 
-    public static <T> GenericClassReflection<T> extractGenericParameterOf(Class<T> genericContainerClass) {
-        return new GenericClassReflection<>(genericContainerClass, 0);
+    public static <T> GenericReflection<T> extractParameterOf(Class<T> genericContainerClass) {
+        return new GenericReflection<>(genericContainerClass);
     }
 
-    public static <T> GenericClassReflection<T> extractGenericParameterOf(Class<T> genericContainerClass, int parameterIndex) {
-        return new GenericClassReflection<>(genericContainerClass, parameterIndex);
+    public Indexed atIndex(int parameterIndex) {
+        return new Indexed(parameterIndex);
     }
 
-    public GenericClassReflection<T> asClass() {
-        return this instanceof GenericClassReflection
-               ? (GenericClassReflection<T>) this
-               : new GenericClassReflection<>(genericClass, parameterIndex);
-    }
+    public class Indexed {
 
-    public GenericTypeReflection<T> asType() {
-        return this instanceof GenericTypeReflection
-               ? (GenericTypeReflection<T>) this
-               : new GenericTypeReflection<>(genericClass, parameterIndex);
-    }
+        private final int parameterIndex;
 
-    public static class GenericClassReflection<T> extends GenericReflection<T> {
-        protected GenericClassReflection(Class<T> genericClass, int parameterIndex) {
-            super(genericClass, parameterIndex);
+        protected Indexed(int parameterIndex) {
+            this.parameterIndex = parameterIndex;
+        }
+
+        public AsType asType() {
+            return new AsType();
         }
 
         public @Nonnull <R> Class<R> from(@Nonnull final T instance) throws IllegalArgumentException {
-            return ReflectionUtils.extractClass(super.from(instance));
+            return ReflectionUtils.extractClass(GenericReflection.this.from(instance, parameterIndex));
         }
 
         public @Nonnull <R> Class<R> from(@Nonnull final Type actualType) throws IllegalArgumentException {
-            return ReflectionUtils.extractClass(super.from(actualType));
+            return ReflectionUtils.extractClass(GenericReflection.this.from(actualType, parameterIndex));
+        }
+
+        public class AsType {
+
+            public @Nonnull Type from(@Nonnull final T instance) throws IllegalArgumentException {
+                return GenericReflection.this.from(instance, parameterIndex);
+            }
+
+            public @Nonnull Type from(@Nonnull final Type actualType) throws IllegalArgumentException {
+                return GenericReflection.this.from(actualType, parameterIndex);
+            }
         }
     }
 
-    public static class GenericTypeReflection<T> extends GenericReflection<T> {
-        protected GenericTypeReflection(Class<T> genericClass, int parameterIndex) {
-            super(genericClass, parameterIndex);
-        }
-
-        public @Nonnull Type from(@Nonnull final T instance) throws IllegalArgumentException {
-            return super.from(instance);
-        }
-
-        public @Nonnull Type from(@Nonnull final Type actualType) throws IllegalArgumentException {
-            return super.from(actualType);
-        }
+    @Nonnull Type from(@Nonnull T instance, int parameterIndex) throws IllegalArgumentException {
+        return from(instance.getClass(), parameterIndex);
     }
 
-    private @Nonnull Type from(@Nonnull T instance) throws IllegalArgumentException {
-        return from(instance.getClass());
-    }
-
-    private @Nonnull Type from(@Nonnull final Type actualType) throws IllegalArgumentException {
+    @Nonnull Type from(@Nonnull final Type actualType, int parameterIndex) throws IllegalArgumentException {
         final Class<?> actualClass = ReflectionUtils.extractClass(actualType);
 
         // Прекращаем работу если genericClass не является предком

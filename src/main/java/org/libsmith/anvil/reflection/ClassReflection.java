@@ -119,7 +119,6 @@ public class ClassReflection<T> implements ReflectionSubjectAware<Class<T>>  {
         return constructor().paramsUncheckedOp(params).map(ConstructorInvoker::getConstructor);
     }
 
-
     public @Nonnull Set<Method> getAllMethods() {
         Set<Method> allMethods = this.allMethodsCached;
         if (allMethods == null) {
