@@ -20,8 +20,7 @@ import java.util.function.Supplier;
  */
 public interface DynamicBean {
 
-
-    static DynamicBean of(Supplier<Map<? super String, Object>> propertiesSupplier) {
+    static DynamicBean of(Supplier<? extends Map<? super String, Object>> propertiesSupplier) {
         return new Impl(propertiesSupplier, null);
     }
 
@@ -90,10 +89,10 @@ public interface DynamicBean {
 
     class Impl implements DynamicBean {
 
-        private final Supplier<Map<? super String, Object>> propertiesSupplier;
+        private final Supplier<? extends Map<? super String, Object>> propertiesSupplier;
         private final Namespace defaultNameSpace;
 
-        protected Impl(Supplier<Map<? super String, Object>> propertiesSupplier,
+        protected Impl(Supplier<? extends Map<? super String, Object>> propertiesSupplier,
                        Namespace defaultNamespace) {
             this.propertiesSupplier = propertiesSupplier;
             this.defaultNameSpace = defaultNamespace;
