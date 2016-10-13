@@ -167,7 +167,7 @@ public class DynamicBeanTest {
 
             acnsi.setAsClValue("fffggg");
             Assert.assertEquals("fffggg", acnsi.getAsClValue());
-            Assert.assertEquals("fffggg", map.get(AsClassNameSpacingIface.class.getName() + ".asClValue"));
+            Assert.assertEquals("fffggg", map.get(AsClassNameSpacingIface.class.getCanonicalName() + ".asClValue"));
         }
 
         {
@@ -179,8 +179,15 @@ public class DynamicBeanTest {
 
             acnsi.setAsClSfxValue("cvbn");
             Assert.assertEquals("cvbn", acnsi.getAsClSfxValue());
-            Assert.assertEquals("cvbn", map.get(AsClassSfxNameSpacingIface.class.getName() + ".suffix.asClSfxValue"));
+            Assert.assertEquals("cvbn", map.get(AsClassSfxNameSpacingIface.class.getCanonicalName() + ".suffix.asClSfxValue"));
         }
+    }
+
+    @Test
+    public void asMapTest() {
+        GenericInterface gi = DynamicBean.of(new HashMap<>()).as(GenericInterface.class);
+        gi.setSomeProperty("some value");
+        Assert.assertEquals("some value", gi.as(Map.class).get("someProperty"));
     }
 
     @Test(expected = UnsupportedOperationException.class)
@@ -189,10 +196,27 @@ public class DynamicBeanTest {
     }
 
     @Test
-    public void asMapTest() {
-        GenericInterface gi = DynamicBean.of(new HashMap<>()).as(GenericInterface.class);
-        gi.setSomeProperty("some value");
-        Assert.assertEquals("some value", gi.as(Map.class).get("someProperty"));
+    public void defaultNamespaceTesting() {
+        DynamicBean.Namespace namespace = DynamicBean.makeNamespace("suf", DynamicBean.Namespace.Self.class);
+        HashMap<String, Object> map = new HashMap<>();
+        DynamicBean dynamicBean = DynamicBean.of(map);
+        DynamicBean dynamicNSBean = dynamicBean.withDefaultNamespace(namespace);
+        dynamicNSBean.as(GenericInterface.class).setSomeProperty("sadad");
+        Assert.assertEquals("sadad", map.get(GenericInterface.class.getCanonicalName() + ".suf.someProperty"));
+        Assert.assertEquals("sadad", dynamicNSBean.as(GenericInterface.class).getSomeProperty());
+        Assert.assertNull(dynamicBean.as(GenericInterface.class).getSomeProperty());
+
+        GenericInterface giQqq = dynamicBean.withDefaultNamespace(DynamicBean.makeNamespace("qqq"))
+                                            .as(GenericInterface.class);
+        Assert.assertNull(giQqq.getSomeProperty());
+        giQqq.setSomeProperty("ddffgg");
+        Assert.assertEquals("ddffgg", map.get("qqq.someProperty"));
+
+        GenericInterface giObj = dynamicBean.withDefaultNamespace(DynamicBean.makeNamespace(Object.class))
+                                            .as(GenericInterface.class);
+        Assert.assertNull(giObj.getSomeProperty());
+        giObj.setSomeProperty("werty");
+        Assert.assertEquals("werty", map.get("java.lang.Object.someProperty"));
     }
 
     interface PropertyDescribed {

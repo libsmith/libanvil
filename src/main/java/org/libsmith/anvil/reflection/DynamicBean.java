@@ -20,21 +20,24 @@ import java.util.function.Supplier;
  */
 public interface DynamicBean {
 
+
     static DynamicBean of(Supplier<Map<? super String, Object>> propertiesSupplier) {
-        return new Impl(propertiesSupplier);
+        return new Impl(propertiesSupplier, null);
     }
 
     static DynamicBean of(Map<? super String, Object> properties) {
-        return new Impl(() -> properties);
+        return new Impl(() -> properties, null);
     }
 
-    @SuppressWarnings("unchecked")
+    DynamicBean withDefaultNamespace(Namespace namespace);
+
     <T> T as(Class<T> iface);
 
     @Inherited
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     @interface Property {
+
         String name() default "";
     }
 
@@ -42,16 +45,63 @@ public interface DynamicBean {
     @Target(ElementType.TYPE)
     @Retention(RetentionPolicy.RUNTIME)
     @interface Namespace {
+
         String value() default "";
-        Class<?> as() default Object.class;
+        Class<?> as() default None.class;
+
+        abstract class None {
+            private None()
+            { }
+        }
+
+        abstract class Self {
+            private Self()
+            { }
+        }
+    }
+
+    static Namespace makeNamespace(String value) {
+        return makeNamespace(value, null);
+    }
+
+    static Namespace makeNamespace(Class<?> as) {
+        return makeNamespace(null, as);
+    }
+
+    static Namespace makeNamespace(String value, Class<?> as) {
+        return new Namespace() {
+
+            @Override
+            public Class<? extends Annotation> annotationType() {
+                return Namespace.class;
+            }
+
+            @Override
+            public String value() {
+                return value == null ? "" : value;
+            }
+
+            @Override
+            public Class<?> as() {
+                return as == null ? None.class : as;
+            }
+        };
     }
 
     class Impl implements DynamicBean {
 
         private final Supplier<Map<? super String, Object>> propertiesSupplier;
+        private final Namespace defaultNameSpace;
 
-        protected Impl(Supplier<Map<? super String, Object>> propertiesSupplier) {
+        protected Impl(Supplier<Map<? super String, Object>> propertiesSupplier,
+                       Namespace defaultNamespace) {
             this.propertiesSupplier = propertiesSupplier;
+            this.defaultNameSpace = defaultNamespace;
+        }
+
+        @Override
+        public DynamicBean withDefaultNamespace(Namespace namespace) {
+            return new Impl(propertiesSupplier, namespace);
         }
 
         @Override
@@ -112,18 +162,24 @@ public interface DynamicBean {
             }
             Namespace namespaceDescriptor = methodClass.getAnnotation(Namespace.class);
             Function<String, String> namespace = val -> {
-                if (namespaceDescriptor == null) {
+                Namespace ns = namespaceDescriptor != null ? namespaceDescriptor : defaultNameSpace;
+                if (ns == null) {
                     return val;
                 }
                 StringBuilder sb = new StringBuilder();
-                if (namespaceDescriptor.as() != Object.class) {
-                    sb.append(namespaceDescriptor.as().getName());
+                if (ns.as() != Namespace.None.class) {
+                    if (ns.as() == Namespace.Self.class) {
+                        sb.append(methodClass.getCanonicalName());
+                    }
+                    else {
+                        sb.append(ns.as().getCanonicalName());
+                    }
                 }
-                if (Strings.isNotBlank(namespaceDescriptor.value())) {
+                if (Strings.isNotBlank(ns.value())) {
                     if (sb.length() != 0) {
                         sb.append(".");
                     }
-                    sb.append(namespaceDescriptor.value());
+                    sb.append(ns.value());
                 }
                 if (sb.length() != 0) {
                     sb.append(".");
