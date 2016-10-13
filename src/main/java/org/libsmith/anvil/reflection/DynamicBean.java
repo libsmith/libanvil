@@ -43,7 +43,7 @@ public interface DynamicBean {
     @Retention(RetentionPolicy.RUNTIME)
     @interface Namespace {
         String value() default "";
-        boolean asClass() default false;
+        Class<?> as() default Object.class;
     }
 
     class Impl implements DynamicBean {
@@ -113,8 +113,8 @@ public interface DynamicBean {
                     return val;
                 }
                 StringBuilder sb = new StringBuilder();
-                if (namespaceDescriptor.asClass()) {
-                    sb.append(method.getDeclaringClass().getName());
+                if (namespaceDescriptor.as() != Object.class) {
+                    sb.append(namespaceDescriptor.as().getName());
                 }
                 if (Strings.isNotBlank(namespaceDescriptor.value())) {
                     if (sb.length() != 0) {

@@ -237,14 +237,14 @@ public class DynamicBeanTest {
         void setAnotherValue(String value);
     }
 
-    @DynamicBean.Namespace(asClass = true)
+    @DynamicBean.Namespace(as = AsClassNameSpacingIface.class)
     interface AsClassNameSpacingIface extends NameSpacingIface {
 
         String getAsClValue();
         void setAsClValue(String value);
     }
 
-    @DynamicBean.Namespace(value = "suffix", asClass = true)
+    @DynamicBean.Namespace(value = "suffix", as = AsClassSfxNameSpacingIface.class)
     interface AsClassSfxNameSpacingIface extends AsClassNameSpacingIface {
 
         String getAsClSfxValue();
