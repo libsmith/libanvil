@@ -62,7 +62,7 @@ public class DynamicBeanTest {
     }
 
     @Test
-    public void contextMapTest() {
+    public void contextMapAndDetachTest() {
         HashMap<String, Object> propetiesA = new HashMap<>();
         HashMap<String, Object> propetiesB = new HashMap<>();
         AtomicInteger a = new AtomicInteger();
@@ -74,6 +74,18 @@ public class DynamicBeanTest {
         for (int i = 0; i < 10; i++) {
             Assert.assertEquals("qwerty", genericInterface.getSomeProperty());
             Assert.assertEquals("asdfgh", genericInterface.getSomeProperty());
+        }
+
+
+        GenericInterface detachedA = genericInterface.detach().as(GenericInterface.class);
+        GenericInterface detachedB = genericInterface.detach().as(GenericInterface.class);
+
+        for (int i = 0; i < 10; i++) {
+            Assert.assertEquals("qwerty", detachedA.getSomeProperty());
+        }
+
+        for (int i = 0; i < 10; i++) {
+            Assert.assertEquals("asdfgh", detachedB.getSomeProperty());
         }
     }
 

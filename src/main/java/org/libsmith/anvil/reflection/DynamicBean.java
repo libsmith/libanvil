@@ -6,6 +6,7 @@ import java.lang.annotation.*;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.*;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,6 +30,8 @@ public interface DynamicBean {
     }
 
     DynamicBean withDefaultNamespace(Namespace namespace);
+
+    DynamicBean detach();
 
     <T> T as(Class<T> iface);
 
@@ -101,6 +104,12 @@ public interface DynamicBean {
         @Override
         public DynamicBean withDefaultNamespace(Namespace namespace) {
             return new Impl(propertiesSupplier, namespace);
+        }
+
+        @Override
+        public DynamicBean detach() {
+            Map<? super String, Object> propertiesMap = new HashMap<>(propertiesSupplier.get());
+            return new Impl(() -> propertiesMap, defaultNameSpace);
         }
 
         @Override
