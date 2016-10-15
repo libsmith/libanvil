@@ -305,7 +305,7 @@ public class DynamicBeanTest {
     interface AsClassPnsNameSpacingIface extends AsClassSfxNameSpacingIface {
 
         @Override
-        @Property(namespace = @Namespace(as = AsClassNameSpacingIface.class))
+        @Namespace(as = AsClassNameSpacingIface.class)
         String getAsClValue();
 
         @Override

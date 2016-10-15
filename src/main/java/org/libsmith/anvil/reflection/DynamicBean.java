@@ -39,15 +39,11 @@ public interface DynamicBean {
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
     @interface Property {
-
-        String INHERITED_NAMESPACE = "\1__INHERITED__\1";
-
         String name() default "";
-        Namespace namespace() default @Namespace(INHERITED_NAMESPACE);
     }
 
     @Inherited
-    @Target(ElementType.TYPE)
+    @Target({ ElementType.TYPE, ElementType.METHOD })
     @Retention(RetentionPolicy.RUNTIME)
     @interface Namespace {
 
@@ -176,8 +172,8 @@ public interface DynamicBean {
             Optional<String> nameFromDescriptor =
                     methodDescriptor.flatMap(p -> p.name().isEmpty() ? Optional.empty() : Optional.of(p.name()));
 
-            Namespace namespaceDescriptor = methodDescriptor.map(Property::namespace).orElse(null);
-            if (namespaceDescriptor == null || namespaceDescriptor.value().equals(Property.INHERITED_NAMESPACE)) {
+            Namespace namespaceDescriptor = method.getAnnotation(Namespace.class);
+            if (namespaceDescriptor == null) {
                 namespaceDescriptor = methodClass.getAnnotation(Namespace.class);
             }
             if (namespaceDescriptor == null) {
