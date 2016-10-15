@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class DynamicBeanTest {
 
+
     @Test
     public void getAndSetTest() {
         HashMap<String, Object> beanProperties = new HashMap<>();
@@ -75,7 +76,6 @@ public class DynamicBeanTest {
             Assert.assertEquals("qwerty", genericInterface.getSomeProperty());
             Assert.assertEquals("asdfgh", genericInterface.getSomeProperty());
         }
-
 
         GenericInterface detachedA = genericInterface.detach().as(GenericInterface.class);
         GenericInterface detachedB = genericInterface.detach().as(GenericInterface.class);
@@ -193,6 +193,12 @@ public class DynamicBeanTest {
             Assert.assertEquals("cvbn", acnsi.getAsClSfxValue());
             Assert.assertEquals("cvbn", map.get(AsClassSfxNameSpacingIface.class.getCanonicalName() + ".suffix.asClSfxValue"));
         }
+
+        {
+            AsClassPnsNameSpacingIface iface = dynamicBean.as(AsClassPnsNameSpacingIface.class);
+            Assert.assertEquals("fffggg", iface.getAsClValue());
+            Assert.assertEquals(null, iface.getAsClSfxValue());
+        }
     }
 
     @Test
@@ -293,5 +299,16 @@ public class DynamicBeanTest {
 
         String getAsClSfxValue();
         void setAsClSfxValue(String value);
+    }
+
+    @DynamicBean.Namespace(as = AsClassPnsNameSpacingIface.class)
+    interface AsClassPnsNameSpacingIface extends AsClassSfxNameSpacingIface {
+
+        @Override
+        @Property(namespace = @Namespace(as = AsClassNameSpacingIface.class))
+        String getAsClValue();
+
+        @Override
+        String getAsClSfxValue();
     }
 }

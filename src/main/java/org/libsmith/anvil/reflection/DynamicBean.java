@@ -40,7 +40,10 @@ public interface DynamicBean {
     @Retention(RetentionPolicy.RUNTIME)
     @interface Property {
 
+        String INHERITED_NAMESPACE = "\1__INHERITED__\1";
+
         String name() default "";
+        Namespace namespace() default @Namespace(INHERITED_NAMESPACE);
     }
 
     @Inherited
@@ -107,12 +110,6 @@ public interface DynamicBean {
         }
 
         @Override
-        public DynamicBean detach() {
-            Map<? super String, Object> propertiesMap = new HashMap<>(propertiesSupplier.get());
-            return new Impl(() -> propertiesMap, defaultNameSpace);
-        }
-
-        @Override
         @SuppressWarnings("unchecked")
         public final <T> T as(Class<T> iface) {
 
@@ -124,6 +121,12 @@ public interface DynamicBean {
             return (T) Proxy.newProxyInstance(
                     Thread.currentThread().getContextClassLoader(),
                     new Class[] { iface }, invocationHandler);
+        }
+
+        @Override
+        public DynamicBean detach() {
+            Map<? super String, Object> propertiesMap = new HashMap<>(propertiesSupplier.get());
+            return new Impl(() -> propertiesMap, defaultNameSpace);
         }
 
         private MethodInvoker makeAccessor(Method method) {
@@ -168,9 +171,20 @@ public interface DynamicBean {
                     throw new RuntimeException(ex);
                 }
             }
-            Namespace namespaceDescriptor = methodClass.getAnnotation(Namespace.class);
+
+            Optional<Property> methodDescriptor = Optional.ofNullable(method.getAnnotation(Property.class));
+            Optional<String> nameFromDescriptor =
+                    methodDescriptor.flatMap(p -> p.name().isEmpty() ? Optional.empty() : Optional.of(p.name()));
+
+            Namespace namespaceDescriptor = methodDescriptor.map(Property::namespace).orElse(null);
+            if (namespaceDescriptor == null || namespaceDescriptor.value().equals(Property.INHERITED_NAMESPACE)) {
+                namespaceDescriptor = methodClass.getAnnotation(Namespace.class);
+            }
+            if (namespaceDescriptor == null) {
+                namespaceDescriptor = defaultNameSpace;
+            }
+            Namespace ns = namespaceDescriptor;
             Function<String, String> namespace = val -> {
-                Namespace ns = namespaceDescriptor != null ? namespaceDescriptor : defaultNameSpace;
                 if (ns == null) {
                     return val;
                 }
@@ -198,10 +212,6 @@ public interface DynamicBean {
                     return val;
                 }
             };
-
-            Optional<Property> methodDescriptor = Optional.ofNullable(method.getAnnotation(Property.class));
-            Optional<String> nameFromDescriptor =
-                    methodDescriptor.flatMap(p -> p.name().isEmpty() ? Optional.empty() : Optional.of(p.name()));
 
             if (name.length() > 2 && name.startsWith("is") && method.getReturnType() == boolean.class) {
                 String propertyName = namespace.apply(nameFromDescriptor.orElseGet(() -> substringPropertyNameAt(2, name)));
