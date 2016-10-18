@@ -15,7 +15,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class DynamicBeanTest {
 
-
     @Test
     public void getAndSetTest() {
         HashMap<String, Object> beanProperties = new HashMap<>();
@@ -97,15 +96,15 @@ public class DynamicBeanTest {
 
         Assert.assertEquals(genericInterface1, genericInterface1);
         Assert.assertEquals(genericInterface2, genericInterface2);
-        Assert.assertNotEquals(genericInterface1, genericInterface2);
-        Assert.assertNotEquals(genericInterface2, genericInterface1);
+        Assert.assertEquals(genericInterface1, genericInterface2);
+        Assert.assertEquals(genericInterface2, genericInterface1);
 
         Assert.assertEquals(genericInterface1.hashCode(), genericInterface1.hashCode());
         Assert.assertEquals(genericInterface2.hashCode(), genericInterface2.hashCode());
 
         Assert.assertFalse(genericInterface1.toString().isEmpty());
         Assert.assertEquals(genericInterface1.toString(), genericInterface1.toString());
-        Assert.assertNotEquals(genericInterface1.toString(), genericInterface2.toString());
+        Assert.assertEquals(genericInterface1.toString(), genericInterface2.toString());
     }
 
     @Test
@@ -235,6 +234,17 @@ public class DynamicBeanTest {
         Assert.assertNull(giObj.getSomeProperty());
         giObj.setSomeProperty("werty");
         Assert.assertEquals("werty", map.get("java.lang.Object.someProperty"));
+    }
+
+    @Test
+    public void wrapperCacheTest() {
+        DynamicBean dynamicBean = DynamicBean.of(new HashMap<>());
+        Assert.assertSame(dynamicBean.as(GenericInterface.class), dynamicBean.as(GenericInterface.class));
+        Assert.assertEquals(dynamicBean.as(GenericInterface.class), dynamicBean.as(GenericInterface.class));
+        Assert.assertNotSame(dynamicBean.as(GenericInterface.class), dynamicBean.detach().as(GenericInterface.class));
+        Assert.assertNotEquals(dynamicBean.as(GenericInterface.class), dynamicBean.detach().as(GenericInterface.class));
+        Assert.assertNotSame(dynamicBean.as(DefaultMethodInterface.class), dynamicBean.as(GenericInterface.class));
+        Assert.assertNotEquals(dynamicBean.as(DefaultMethodInterface.class), dynamicBean.as(GenericInterface.class));
     }
 
     interface PropertyDescribed {

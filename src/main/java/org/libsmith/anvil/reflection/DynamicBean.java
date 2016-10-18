@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -22,11 +23,11 @@ import java.util.function.Supplier;
 public interface DynamicBean {
 
     static DynamicBean of(Supplier<? extends Map<? super String, Object>> propertiesSupplier) {
-        return new Impl(propertiesSupplier, null);
+        return new Impl(propertiesSupplier, null, new ConcurrentHashMap<>());
     }
 
     static DynamicBean of(Map<? super String, Object> properties) {
-        return new Impl(() -> properties, null);
+        return new Impl(() -> properties, null, new ConcurrentHashMap<>());
     }
 
     DynamicBean withDefaultNamespace(Namespace namespace);
@@ -91,24 +92,37 @@ public interface DynamicBean {
 
     class Impl implements DynamicBean {
 
+        private final ConcurrentMap<Class<?>, Object> wrapperCache;
         private final Supplier<? extends Map<? super String, Object>> propertiesSupplier;
         private final Namespace defaultNameSpace;
 
         protected Impl(Supplier<? extends Map<? super String, Object>> propertiesSupplier,
-                       Namespace defaultNamespace) {
+                       Namespace defaultNamespace,
+                       ConcurrentMap<Class<?>, Object> wrapperCache) {
             this.propertiesSupplier = propertiesSupplier;
             this.defaultNameSpace = defaultNamespace;
+            this.wrapperCache = wrapperCache;
         }
 
         @Override
         public DynamicBean withDefaultNamespace(Namespace namespace) {
-            return new Impl(propertiesSupplier, namespace);
+            return new Impl(propertiesSupplier, namespace, new ConcurrentHashMap<>());
         }
 
         @Override
         @SuppressWarnings("unchecked")
         public final <T> T as(Class<T> iface) {
+            return (T) wrapperCache.computeIfAbsent(iface, this::makeWrapper);
+        }
 
+        @Override
+        public DynamicBean detach() {
+            Map<? super String, Object> propertiesMap = new HashMap<>(propertiesSupplier.get());
+            return new Impl(() -> propertiesMap, defaultNameSpace, new ConcurrentHashMap<>());
+        }
+
+        @SuppressWarnings("unchecked")
+        private <T> T makeWrapper(Class<T> iface) {
             Map<Method, MethodInvoker> accessors = new ConcurrentHashMap<>();
             InvocationHandler invocationHandler = (proxy, method, args) -> {
                 MethodInvoker accessor = accessors.computeIfAbsent(method, this::makeAccessor);
@@ -117,12 +131,6 @@ public interface DynamicBean {
             return (T) Proxy.newProxyInstance(
                     Thread.currentThread().getContextClassLoader(),
                     new Class[] { iface }, invocationHandler);
-        }
-
-        @Override
-        public DynamicBean detach() {
-            Map<? super String, Object> propertiesMap = new HashMap<>(propertiesSupplier.get());
-            return new Impl(() -> propertiesMap, defaultNameSpace);
         }
 
         private MethodInvoker makeAccessor(Method method) {
@@ -138,7 +146,7 @@ public interface DynamicBean {
                     return (self, args) -> hash;
                 }
                 if ("toString".equals(name)) {
-                    return (self, args) -> self.getClass().getName() + "@" + self.hashCode();
+                    return (self, args) -> self.getClass().getName() + "@" + Integer.toHexString(self.hashCode());
                 }
             }
             if (methodClass == Map.class) {
